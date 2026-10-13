@@ -415,6 +415,7 @@ fn equilibrate_od<V: Vdf, T: Vdf>(
     work.turns.touched.clear();
 
     let mut moved = 0.0;
+    let mut costs_unchanged = true;
     for (i, path) in paths.iter_mut().enumerate() {
         if i == cheapest || path.flow <= 0.0 {
             continue;
@@ -422,10 +423,14 @@ fn equilibrate_od<V: Vdf, T: Vdf>(
         // Only the stretches where this path and the cheapest differ matter.
         let (links, cheap_l) = trim_common(links_of(path), cheap_links);
         let (turns, cheap_t) = trim_common(turns_of(path), cheap_turns);
-        // Earlier shifts have changed costs, so price both stretches afresh. Shifting several
+        // Until the first shift, costs are exactly what the pricing pass above saw, so its
+        // result is reused. After a shift, price both stretches afresh: shifting several
         // paths from one cost snapshot overshoots when they load the same links.
-        let gap =
-            state.segment_cost(class, links, turns) - state.segment_cost(class, cheap_l, cheap_t);
+        let gap = if costs_unchanged {
+            work.path_cost[i] - base
+        } else {
+            state.segment_cost(class, links, turns) - state.segment_cost(class, cheap_l, cheap_t)
+        };
         if gap <= 0.0 {
             continue;
         }
@@ -481,6 +486,7 @@ fn equilibrate_od<V: Vdf, T: Vdf>(
             amount,
         );
 
+        costs_unchanged = false;
         path.flow -= delta;
         moved += delta;
         refresh_touched(state, work);
