@@ -1,0 +1,106 @@
+site_name: PyTA
+site_description: Static traffic assignment with a Rust core and Python bindings
+repo_name: pyta
+docs_dir: docs
+strict: true
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.tabs.link
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - User guide:
+      - Python guide: guide/python.md
+      - Rust guide: guide/rust.md
+  - Concepts:
+      - How it works: concepts/how-it-works.md
+      - Network model: concepts/network-model.md
+      - Turns: concepts/turns.md
+      - Traffic classes: concepts/classes.md
+  - Benchmarks: benchmarks.md
+  - Design:
+      - Architecture: design/architecture.md
+      - Decision records:
+          - design/decisions/index.md
+          - "0001 Zone = node": design/decisions/0001-zone-equals-node.md
+          - "0002 Turn-aware paths": design/decisions/0002-turn-aware-shortest-paths.md
+          - "0003 Gradient projection": design/decisions/0003-gradient-projection.md
+          - "0004 Multi-class": design/decisions/0004-multi-class.md
+          - "0005 Python API": design/decisions/0005-python-api.md
+          - "0006 Frank-Wolfe": design/decisions/0006-frank-wolfe-reference.md
+          - "0007 Parallel sweeps": design/decisions/0007-parallel-sweeps.md
+      - Roadmap and limitations: design/roadmap.md
+  - Reference:
+      - Python API: reference/python.md
+      - Rust API: reference/rust.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [python]
+          options:
+            show_source: false
+            filters: ["!^_"]
+            inherited_members: false
+            show_root_heading: true
+            heading_level: 3
+            docstring_style: google
+            members_order: source
+            show_signature_annotations: true
+            separate_signature: true
