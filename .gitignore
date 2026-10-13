@@ -1,0 +1,8 @@
+/target
+/.venv
+__pycache__/
+*.so
+/site
+# large benchmark data: fetch with `python data/tntp/fetch.py <Name>`
+/data/tntp/ChicagoRegional/
+/data/tntp/Philadelphia/

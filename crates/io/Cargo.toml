@@ -1,0 +1,10 @@
+[package]
+name = "pyta-io"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+pyta-core = { path = "../core" }
+
+[dev-dependencies]
+rayon = "1.12.0"
