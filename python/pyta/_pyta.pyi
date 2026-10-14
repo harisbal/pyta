@@ -3,6 +3,7 @@
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
+import pandas as pd
 from numpy.typing import NDArray
 
 class Network:
@@ -102,6 +103,9 @@ class Network:
     def num_turns(self) -> int:
         """Number of allowed turns in the turn table."""
     @property
+    def capacity(self) -> NDArray[np.float64]:
+        """Capacity per link."""
+    @property
     def is_endpoint(self) -> NDArray[np.bool_]:
         """Per node: True if paths may only start or end there."""
     def link_nodes(self) -> Tuple[NDArray[np.uint32], NDArray[np.uint32]]:
@@ -169,6 +173,7 @@ class TrafficClass:
         extra_link_cost: Extra cost per link in the same units as travel time, for
             example a toll divided by the class's value of time.
         allowed_links: Bool per link. A turn is usable only if both its links are.
+        name: Label for the class in result tables (default: its position).
     """
 
     def __init__(
@@ -177,17 +182,49 @@ class TrafficClass:
         pce: float = 1.0,
         extra_link_cost: Optional[NDArray[np.float64]] = None,
         allowed_links: Optional[NDArray[np.bool_]] = None,
+        name: Optional[str] = None,
     ) -> None: ...
 
 class AssignResult:
-    """The outcome of :func:`assign`."""
+    """The outcome of :func:`assign`.
 
+    The attributes are numpy arrays indexed by link or turn id. :meth:`link_table`,
+    :meth:`turn_table` and :meth:`path_table` give the same results as pandas DataFrames.
+    """
+
+    def link_table(self) -> pd.DataFrame:
+        """One row per link: ``from_node``, ``to_node``, ``flow`` (vehicles of all
+        classes), ``flow_<class>`` when there are several classes, ``volume`` (in car
+        units), ``preload`` if one was given, ``voc`` (volume plus preload over capacity)
+        and ``time``. GMNS networks also get their ``link_id``."""
+    def turn_table(self) -> pd.DataFrame:
+        """One row per turn: ``from_link``, ``to_link``, ``node``, then the same flow,
+        volume and time columns as :meth:`link_table`."""
+    def path_table(self, class_index: Optional[int] = None) -> pd.DataFrame:
+        """One row per path: ``class`` (when there are several), ``origin``,
+        ``destination``, ``flow``, ``time`` and ``links`` (a tuple of link ids).
+        ``class_index`` selects one class; by default all are included.
+
+        ``.explode("links")`` gives one row per path and link. For very large models,
+        :meth:`paths` is faster."""
+    @property
+    def network(self) -> Network:
+        """The network that was assigned."""
+    @property
+    def class_names(self) -> List[str]:
+        """One name per class: the :class:`TrafficClass` name, or its position."""
     @property
     def link_volume(self) -> NDArray[np.float64]:
-        """PCE-weighted volume per link: what travel times depend on."""
+        """PCE-weighted volume per link."""
     @property
     def turn_volume(self) -> NDArray[np.float64]:
         """PCE-weighted volume per turn."""
+    @property
+    def link_time(self) -> NDArray[np.float64]:
+        """Travel time per link at the final volumes, preload included."""
+    @property
+    def turn_time(self) -> NDArray[np.float64]:
+        """Travel time per turn: fixed penalty plus delay."""
     @property
     def link_flow(self) -> NDArray[np.float64]:
         """Vehicles of the first class per link."""
@@ -201,6 +238,12 @@ class AssignResult:
     def class_turn_flow(self) -> List[NDArray[np.float64]]:
         """Vehicles per turn, one array per class."""
     @property
+    def link_preload(self) -> Optional[NDArray[np.float64]]:
+        """The ``link_preload`` passed to :func:`assign`, or None."""
+    @property
+    def turn_preload(self) -> Optional[NDArray[np.float64]]:
+        """The ``turn_preload`` passed to :func:`assign`, or None."""
+    @property
     def relative_gap(self) -> float:
         """Exact relative gap of the final flows."""
     @property
@@ -209,14 +252,6 @@ class AssignResult:
     @property
     def converged(self) -> bool:
         """Whether the gap target was reached."""
-    @property
-    def link_preload(self) -> Optional[NDArray[np.float64]]:
-        """Vehicles per link already on the network when the period began (trips carried
-        over, PCE-weighted); None unless from :func:`assign_periods`. Travel times
-        depend on ``link_volume + link_preload``."""
-    @property
-    def turn_preload(self) -> Optional[NDArray[np.float64]]:
-        """The same per turn."""
     @property
     def sweep_gaps(self) -> NDArray[np.float64]:
         """Cheap gap estimate measured during each sweep."""
@@ -230,9 +265,9 @@ class AssignResult:
     def paths(self, class_index: int = 0) -> Dict[str, NDArray[Any]]:
         """Returns every path of a class as flat arrays.
 
-        The dict has ``origin``, ``destination`` and ``flow`` (one entry per path),
-        ``link_offsets`` (one more entry) and ``links`` (all link ids back to back).
-        Path ``i`` uses ``links[link_offsets[i]:link_offsets[i + 1]]``.
+        The dict has ``origin``, ``destination``, ``flow`` and ``time`` (one entry per
+        path), ``link_offsets`` (one more entry) and ``links`` (all link ids back to
+        back). Path ``i`` uses ``links[link_offsets[i]:link_offsets[i + 1]]``.
 
         Raises:
             IndexError: If the class does not exist.
@@ -247,6 +282,8 @@ def assign(
     seed: int = 0,
     chunk_size: int = 0,
     threads: Optional[int] = None,
+    link_preload: Optional[NDArray[np.float64]] = None,
+    turn_preload: Optional[NDArray[np.float64]] = None,
 ) -> AssignResult:
     """Finds the user equilibrium by path-based gradient projection.
 
@@ -264,55 +301,13 @@ def assign(
             depend on the number of threads.
         threads: Number of threads for the parallel parts (default: all cores, or
             ``RAYON_NUM_THREADS``).
+        link_preload: Fixed volume per link in car units, such as buses or through
+            traffic, that is not assigned but adds to the volume the delays see.
+        turn_preload: The same per turn.
 
     Returns:
         The flows, paths and convergence information.
 
     Raises:
         ValueError: For malformed input or demand that cannot be routed.
-    """
-
-class Period:
-    """One time period for :func:`assign_periods`.
-
-    Args:
-        duration: Length in minutes, the unit of travel times. Capacities are per
-            hour and are multiplied by ``duration / 60`` for this period.
-        classes: A :class:`Demand`, a :class:`TrafficClass` or a list of them: the
-            period's own trips. Periods may have different classes.
-    """
-
-    def __init__(
-        self,
-        duration: float,
-        classes: Union[Demand, TrafficClass, Sequence[Union[Demand, TrafficClass]]],
-    ) -> None: ...
-    @property
-    def duration(self) -> float:
-        """Length in minutes."""
-
-def assign_periods(
-    network: Network,
-    periods: Sequence[Period],
-    gap: float = 1e-6,
-    max_iter: int = 200,
-    order: str = "fixed",
-    seed: int = 0,
-    chunk_size: int = 0,
-    threads: Optional[int] = None,
-) -> List[AssignResult]:
-    """Assigns the periods in order; unfinished trips load the next period.
-
-    Trips depart uniformly during a period. Those still travelling at its end are spread
-    along their routes in proportion to travel time and are not assigned again: in the
-    next period the links they still have to travel start with that many extra vehicles
-    (``link_preload`` and ``turn_preload`` of the result, times the class's PCE), which
-    slows them. A path of travel time ``tau`` in a period of length ``T`` leaves
-    ``min(tau, T) / T`` of its flow on the network. See decision 0010.
-
-    The other arguments are those of :func:`assign`; each period runs to ``gap``.
-
-    Raises:
-        ValueError: For a malformed period (non-positive duration, no classes) or demand
-            that cannot be routed.
     """

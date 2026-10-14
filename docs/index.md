@@ -1,6 +1,6 @@
 # PyTA
 
-**Path-based traffic assignment with turn delays, multiple vehicle classes and time periods.**
+**Path-based traffic assignment with turn delays and multiple vehicle classes.**
 
 PyTA is an open-source package for **static user-equilibrium traffic assignment** on road networks.
 Given a network and an origin–destination demand matrix, it computes the link and path flows that
@@ -14,7 +14,8 @@ Its main features are:
   exactly by labelling links rather than nodes in the shortest-path search.
 - **Multi-class assignment**, with class-specific demand, passenger-car equivalents, generalised link
   costs (e.g. tolls) and link restrictions.
-- **Sequential time periods**, in which trips not completed by the end of one period load the next.
+- **Background traffic**: fixed preloads on links and turns, such as buses or through traffic.
+- **Tabular results**: link, turn and path results as pandas DataFrames, or as NumPy arrays.
 - **Standard input formats**: TNTP benchmark files, GMNS datasets, or plain tables (pandas DataFrames,
   NumPy arrays).
 - **Validation** against published equilibrium solutions of the standard test networks.
@@ -30,7 +31,8 @@ demand = pyta.Demand.from_tntp(net, "SiouxFalls_trips.tntp")
 
 result = pyta.assign(net, demand)
 result.link_flow               # vehicles per link
-result.paths()                 # equilibrium path flows
+result.link_table()            # flows, volume/capacity and travel time per link
+result.path_table()            # equilibrium path flows and times
 ```
 
 <div class="grid cards" markdown>
@@ -47,7 +49,7 @@ result.paths()                 # equilibrium path flows
 
     ---
 
-    Turn bans, trucks, time periods and select-link analysis on the same example.
+    Turn bans, trucks, background traffic and select-link analysis on the same example.
 
     [:octicons-arrow-right-24: Python guide](guide/python.md)
 

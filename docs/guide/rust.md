@@ -50,6 +50,7 @@ Set `GmnsOptions::length_unit` and `speed_unit` when the dataset has no `config.
 - **`Network::from_edges`** builds the graph; link ids must be `0..num_links`.
 - **`TurnTable::build`** generates the allowed turns and applies bans and penalties.
 - **`Vdf`** is the travel-time function trait. `Bpr` is built in; implement `Vdf` for your own.
+- **`Preloaded::new(&vdf, &volumes)`** adds fixed background traffic: pass it to a solver in place of `vdf`.
 - **`OdDemand::from_triples`** builds the demand.
 - **Solvers:** `gradient_projection`, `gradient_projection_with_turn_delays`,
   `gradient_projection_multiclass`, and the reference `frank_wolfe`.

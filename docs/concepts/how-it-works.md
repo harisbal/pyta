@@ -68,8 +68,8 @@ studies; \(10^{-6}\) and below suits comparisons between scenarios.
   and no equivalent optimisation problem exists (Dafermos, 1972). The equilibrium is still found by
   gradient projection, and convergence is judged by the relative gap alone.
 - **Static and separable.** Queues do not spill back, and every cost depends only on its own link or
-  turn volume, so interactions such as opposing flows at signals are not modelled. Successive periods can be
-  linked by carrying over incomplete trips (see [time periods](periods.md)).
+  turn volume, so interactions such as opposing flows at signals are not modelled. Fixed background
+  traffic can be added to the volumes as a preload.
 
 ## References
 

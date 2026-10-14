@@ -51,30 +51,46 @@ print(result)
 
 ## Reading the result
 
-How many vehicles use each link:
+`link_table()` gives the result per link as a pandas DataFrame:
 
 ```python
-result.link_flow.round()
-# array([1245., 1753., 1755., 1247.,  508.])
+result.link_table().round(2)
 ```
 
-The centre is the shortest route, but its second link has little capacity, so traffic spreads until
-all three routes take the same time. This is the **user equilibrium** of Wardrop's first principle:
-every route in use has the same travel time, and no driver can arrive sooner by switching to another.
+```text
+      from_node  to_node     flow   volume   voc  time
+link
+0             0        1  1244.73  1244.73  0.62  6.14
+1             1        3  1753.07  1753.07  0.88  6.53
+2             0        2  1755.27  1755.27  1.17  5.13
+3             2        3  1246.93  1246.93  1.56  7.54
+4             2        1   508.33   508.33  0.51  1.01
+```
 
-PyTA keeps the routes themselves, so you can see who goes where:
+`flow` counts vehicles, `volume` counts them in car units (the same here, with only cars), `voc` is
+volume over capacity and `time` is the travel time in minutes.
+
+PyTA keeps the routes themselves, so you can also see who goes where:
 
 ```python
-paths = result.paths()
-paths["flow"].round()                  # array([1247., 1245.,  508.])
-paths["links"], paths["link_offsets"]  # links of path i: links[offsets[i]:offsets[i+1]]
+result.path_table().round(2)
 ```
 
-| path | links | vehicles |
-|---|---|---|
-| through the centre | 2, 3 | 1 247 |
-| ring road | 0, 1 | 1 245 |
-| centre, then shortcut | 2, 4, 1 | 508 |
+```text
+      origin  destination     flow   time      links
+path
+0          0            3  1246.93  12.67     (2, 3)
+1          0            3  1244.73  12.67     (0, 1)
+2          0            3   508.33  12.67  (2, 4, 1)
+```
+
+The centre is the shortest route when the roads are empty, but its second link has little capacity, so
+traffic spreads until all three routes take 12.67 minutes. This is the **user equilibrium** of
+Wardrop's first principle: every route in use has the same travel time, and no driver can arrive
+sooner by switching to another.
+
+The same results are available as numpy arrays indexed by link id (`result.link_flow`,
+`result.link_time`, ...), which are faster for large networks.
 
 ## Larger networks
 
@@ -91,5 +107,5 @@ GMNS datasets work too; see the [Python guide](guide/python.md#from-a-gmns-datas
 
 ## Next steps
 
-The [Python guide](guide/python.md) continues this example: ban a turn, add trucks, run a morning and
-an evening period.
+The [Python guide](guide/python.md) continues this example: ban a turn, add trucks, load the network
+with buses and analyse who uses a link.

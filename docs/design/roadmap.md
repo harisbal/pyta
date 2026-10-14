@@ -2,8 +2,7 @@
 
 ## Limitations today
 
-- **Static.** No queues spilling back. Periods can be chained, with unfinished trips carried over, but
-  demand is uniform within a period.
+- **Static.** No queues spilling back; each period is an independent assignment.
 - **Deterministic route choice.** Travellers are assumed to know travel times exactly (deterministic user
   equilibrium). This is a deliberate choice: stochastic user equilibrium is deferred, see below.
 - **Separable delays.** A turn's delay depends on its own volume. Interacting junction models (signals,
@@ -21,7 +20,6 @@
 | Path memory | the per-OD bookkeeping (a vector of paths per OD pair) now makes up a large share of what is left; Sydney (3 264 zones) and Austin (7 388 zones) are untested and may need bush-based storage |
 | Faster flow updates | the remaining bottleneck on large networks (about 40% of the time on Chicago Regional) |
 | OpenStreetMap networks | download and conversion belong in the Python layer (osm2gmns or osmnx), producing GMNS or flat tables |
-| Better carry-over | carry the preload on again when it outlasts a period, load it at the start of the period only, vary capacity within a period |
 | Link-direction optimiser | built on the assignment engine; see below |
 | Bush-based solver | a fallback for the largest networks, with origin-level memory |
 | Interacting junction models | signalised and priority junctions |

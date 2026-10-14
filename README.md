@@ -1,6 +1,6 @@
 # PyTA
 
-Path-based traffic assignment with turn delays, multiple vehicle classes and time periods.
+Path-based traffic assignment with turn delays and multiple vehicle classes.
 
 **Documentation: <https://harisbal.github.io/pyta/>**
 
@@ -16,7 +16,8 @@ Its main features are:
   exactly by labelling links rather than nodes in the shortest-path search.
 - **Multi-class assignment**, with class-specific demand, passenger-car equivalents, generalised link
   costs (e.g. tolls) and link restrictions.
-- **Sequential time periods**, in which trips not completed by the end of one period load the next.
+- **Background traffic**: fixed preloads on links and turns, such as buses or through traffic.
+- **Tabular results**: link, turn and path results as pandas DataFrames, or as NumPy arrays.
 - **Standard input formats**: TNTP benchmark files, GMNS datasets, or plain tables (pandas DataFrames,
   NumPy arrays).
 - **Validation** against published equilibrium solutions of the standard test networks.
@@ -46,7 +47,8 @@ result = pyta.assign(net, demand, gap=1e-6)
 result.converged, result.iterations, result.relative_gap
 result.link_flow          # numpy array, one entry per link
 result.objective          # Beckmann objective (single class, PCE 1)
-result.paths()            # every path as flat arrays: select-link analysis, path export
+result.link_table()       # DataFrame: flow, volume/capacity and time per link
+result.path_table()       # DataFrame: every path with its flow, time and links
 ```
 
 From your own tables (DataFrames or dicts of arrays):

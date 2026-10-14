@@ -18,7 +18,6 @@ pub mod gradient_projection;
 pub mod network;
 pub mod order;
 pub mod path_store;
-pub mod periods;
 pub mod shortest_path;
 pub mod turns;
 pub mod vdf;
@@ -35,7 +34,6 @@ pub use gradient_projection::{
 pub use network::{Edge, Network, NetworkError};
 pub use order::{OriginOrder, OriginSequencer};
 pub use path_store::PathStore;
-pub use periods::{Period, PeriodResult, assign_periods};
 pub use shortest_path::{
     LinkTree, NO_PRED, ShortestPathTree, TurnSearch, dijkstra, dijkstra_turns,
 };

@@ -1,5 +1,8 @@
 # 0010. Time periods: unfinished trips preload the next period
 
+!!! warning "Superseded by [0011](0011-explicit-preloads.md)"
+    `assign_periods` and the automatic carry-over were removed. The record is kept for the reasoning.
+
 **Decision.** `assign_periods` solves each period as a static multi-class assignment. Trips still
 travelling at the end of a period are not assigned again. On a path of travel time $\tau$ in a period
 of length $T$ they leave $\min(\tau, T)/T$ of its flow on the network, spread along the path in proportion to

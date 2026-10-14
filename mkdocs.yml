@@ -1,5 +1,5 @@
 site_name: PyTA
-site_description: Path-based traffic assignment with turn delays, multiple vehicle classes and time periods
+site_description: Path-based traffic assignment with turn delays and multiple vehicle classes
 site_url: https://harisbal.github.io/pyta/
 repo_name: harisbal/pyta
 repo_url: https://github.com/harisbal/pyta
@@ -43,7 +43,6 @@ nav:
       - Rust guide: guide/rust.md
   - Concepts:
       - How it works: concepts/how-it-works.md
-      - Time periods: concepts/periods.md
   - Benchmarks: benchmarks.md
   - Design:
       - Architecture: design/architecture.md
@@ -58,7 +57,8 @@ nav:
           - "0007 Parallel sweeps": design/decisions/0007-parallel-sweeps.md
           - "0008 Path tree": design/decisions/0008-path-tree.md
           - "0009 GMNS input": design/decisions/0009-gmns-input.md
-          - "0010 Time periods": design/decisions/0010-time-periods.md
+          - "0010 Time periods (superseded)": design/decisions/0010-time-periods.md
+          - "0011 Explicit preloads": design/decisions/0011-explicit-preloads.md
       - Roadmap and limitations: design/roadmap.md
   - Reference:
       - Python API: reference/python.md

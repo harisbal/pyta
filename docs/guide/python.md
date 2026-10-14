@@ -49,17 +49,25 @@ Add 200 trucks. Each takes the road space of 2.5 cars, and trucks may not drive 
 truck_trips = pd.DataFrame({"origin": [0], "destination": [3], "flow": [200.0]})
 truck_demand = pyta.Demand.from_table(net, truck_trips)
 
-cars   = pyta.TrafficClass(demand)
-trucks = pyta.TrafficClass(truck_demand, pce=2.5,
+cars   = pyta.TrafficClass(demand, name="cars")
+trucks = pyta.TrafficClass(truck_demand, pce=2.5, name="trucks",
                            allowed_links=np.array([True, True, False, False, False]))
 mixed = pyta.assign(net, [cars, trucks])
-
-mixed.class_link_flow[0].round()    # cars:   array([1146., 1690., 1854., 1310.,  544.])
-mixed.class_link_flow[1].round()    # trucks: array([ 200.,  200.,    0.,    0.,    0.])
-mixed.link_volume.round()           # in car units: array([1646., 2190., 1854., 1310.,  544.])
+mixed.link_table().round()
 ```
 
-The trucks take up room on the ring road, so some cars move to the centre.
+```text
+      from_node  to_node    flow  flow_cars  flow_trucks  volume  voc  time
+link
+0             0        1  1346.0     1146.0        200.0  1646.0  1.0   6.0
+1             1        3  1890.0     1690.0        200.0  2190.0  1.0   7.0
+2             0        2  1854.0     1854.0          0.0  1854.0  1.0   5.0
+3             2        3  1310.0     1310.0          0.0  1310.0  2.0   8.0
+4             2        1   544.0      544.0          0.0   544.0  1.0   1.0
+```
+
+Each truck counts as 2.5 cars in `volume`, so the trucks take up room on the ring road and some cars
+move to the centre.
 
 | `TrafficClass` argument | meaning |
 |---|---|
@@ -67,48 +75,60 @@ The trucks take up room on the ring road, so some cars move to the centre.
 | `pce` | car units per vehicle (default 1) |
 | `extra_link_cost` | cost per link added for this class only, in minutes. Divide a toll by the value of time first. |
 | `allowed_links` | bool per link; `False` closes the link to this class |
+| `name` | label in the result tables (default: the class's position) |
 
-## Several time periods
+## Background traffic
 
-Split the morning into 7:00–8:00 and 8:00–9:00 with the same demand in each. Drivers still on the road
-at 8:00 carry on into the second hour and take up road space there:
+Some traffic is not part of the demand you assign: buses on fixed routes, through traffic taken from
+another model, or a known volume you want to hold constant. Pass it as a **preload**, in car units per
+link. It is not routed, but the travel times respond to it.
+
+Run 100 buses an hour through the centre, each counting as 3 cars:
 
 ```python
-early = pyta.Period(60, pyta.TrafficClass(demand))     # duration in minutes
-late  = pyta.Period(60, pyta.TrafficClass(demand))
-first, second = pyta.assign_periods(net, [early, late])
-
-second.link_preload.round()   # array([  0., 179.,   0., 107.,  43.])  still driving at 8:00
-second.link_flow.round()      # array([1249., 1826., 1751., 1174.,  578.])
+buses = np.array([0, 0, 300.0, 300.0, 0])        # car units on links 2 and 3
+loaded = pyta.assign(net, demand, link_preload=buses)
+loaded.path_table().round(2)
 ```
 
-Capacities stay per hour and demand is per period. See [time periods](../concepts/periods.md) for how
-the leftover traffic is worked out.
+```text
+      origin  destination     flow   time      links
+path
+0          0            3   981.13  13.21     (2, 3)
+1          0            3  1491.79  13.21     (0, 1)
+2          0            3   527.08  13.21  (2, 4, 1)
+```
+
+About 270 drivers leave the centre route, and everyone's trip takes half a minute longer. `turn_preload`
+does the same for turns.
 
 ## Select-link analysis
 
-How many of the cars in the mixed run use the shortcut (link 4)?
+`path_table()` keeps each path's links as a tuple. `explode` turns it into one row per path and link,
+which makes select-link analysis a filter. Who uses the shortcut (link 4) in the mixed run?
 
 ```python
-p = mixed.paths()                     # class 0: cars
-uses_shortcut = np.array([4 in p["links"][a:b]
-                          for a, b in zip(p["link_offsets"][:-1], p["link_offsets"][1:])])
-p["flow"][uses_shortcut].sum()       # 544.3
+paths = mixed.path_table().explode("links")
+paths[paths["links"] == 4].groupby("class")["flow"].sum()
+# class
+# cars    544.300375
 ```
-
-`mixed.paths(1)` gives the truck paths.
 
 ## Results
 
-| attribute | meaning |
+| method or attribute | meaning |
 |---|---|
-| `link_flow`, `turn_flow` | vehicles per link and per turn (first class) |
-| `class_link_flow`, `class_turn_flow` | one array per class |
-| `link_volume`, `turn_volume` | all classes in car units: what the travel times depend on |
-| `link_preload`, `turn_preload` | traffic left over from the previous period (`assign_periods` only) |
+| `link_table()`, `turn_table()` | DataFrames per link and per turn: flows (per class if several), volume, preload, volume/capacity, time |
+| `path_table(class_index=None)` | DataFrame per path: class, origin, destination, flow, time, links |
+| `link_flow`, `turn_flow` | numpy: vehicles per link and per turn (first class) |
+| `class_link_flow`, `class_turn_flow` | numpy: one array per class |
+| `link_volume`, `turn_volume` | numpy: all classes in car units, preload excluded |
+| `link_time`, `turn_time` | numpy: travel time at the final volumes |
 | `converged`, `iterations`, `relative_gap` | whether and how well it converged |
 | `objective` | the Beckmann objective; only for a single class with PCE 1 |
-| `paths(class_index=0)` | every path: `origin`, `destination`, `flow`, `links`, `link_offsets` |
+| `paths(class_index=0)` | every path as flat numpy arrays, faster than `path_table()` for large models |
+
+The tables need pandas; the numpy attributes do not.
 
 ## Input reference
 
@@ -154,7 +174,8 @@ units when there is no `config.csv`. `net.node_ids` and `net.link_ids` map back 
 ## Solver options
 
 ```python
-pyta.assign(net, classes, gap=1e-6, max_iter=200, order="fixed", seed=0, chunk_size=0, threads=None)
+pyta.assign(net, classes, gap=1e-6, max_iter=200, order="fixed", seed=0, chunk_size=0, threads=None,
+            link_preload=None, turn_preload=None)
 ```
 
 | argument | meaning |
@@ -163,6 +184,10 @@ pyta.assign(net, classes, gap=1e-6, max_iter=200, order="fixed", seed=0, chunk_s
 | `max_iter` | maximum number of iterations |
 | `order` | `fixed`, `shuffle`, `alternate`, `largest_gap`, `largest_demand`, `smallest_demand`. `shuffle` or `largest_gap` can be faster on large networks. |
 | `chunk_size`, `threads` | parallelism; the defaults use all cores |
+| `link_preload`, `turn_preload` | fixed background volume in car units (see [background traffic](#background-traffic)) |
+
+For several time periods, call `assign` once per period with that period's demand, and scale the
+capacities to the period's length.
 
 The call releases the GIL, and the result does not depend on the number of threads.
 

@@ -368,41 +368,88 @@ def test_gmns_needs_units_and_a_gmns_network(tmp_path):
     assert sioux.node_ids is None
 
 
-# --------------------------------------------------------------- periods
+# --------------------------------------------------------------- preloads
 
 
-def line_network():
-    """a -> b -> c, 10 and 20 minutes, never congested."""
-    return pyta.Network.from_tables({
-        "from_node": [0, 1], "to_node": [1, 2],
-        "free_flow_time": [10.0, 20.0], "capacity": [1e6, 1e6], "b": [0.0, 0.0],
-    })
+def test_preload_acts_like_fixed_traffic():
+    # c1 = 10 + v1, c2 = 20 + v2 with 10 trips and 5 fixed vehicles on link 1:
+    # 15 + x = 20 + (10 - x) gives x = 7.5.
+    net = two_parallel_links()
+    ten = pyta.Demand.from_table(net, {"origin": [0], "destination": [1], "flow": [10.0]})
+    result = pyta.assign(net, ten, gap=1e-10, link_preload=np.array([5.0, 0.0]))
+    np.testing.assert_allclose(result.link_flow, [7.5, 2.5], atol=1e-6)
+    np.testing.assert_allclose(result.link_time, [22.5, 22.5], atol=1e-6)
+    np.testing.assert_allclose(result.link_preload, [5.0, 0.0])
+    assert result.turn_preload is None
+
+    # The same as five vehicles that can only use link 1.
+    five = pyta.Demand.from_table(net, {"origin": [0], "destination": [1], "flow": [5.0]})
+    fixed = pyta.TrafficClass(five, allowed_links=np.array([True, False]))
+    both = pyta.assign(net, [ten, fixed], gap=1e-10)
+    np.testing.assert_allclose(both.class_link_flow[0], result.link_flow, atol=1e-6)
 
 
-def test_unfinished_trips_preload_the_links_still_ahead_of_them():
-    net = line_network()
-    busy = pyta.Demand.from_table(net, {"origin": [0], "destination": [2], "flow": [60.0]})
-    quiet = pyta.Demand.from_table(net, {"origin": [], "destination": [], "flow": []})
-    first, second, third = pyta.assign_periods(
-        net, [pyta.Period(60, busy), pyta.Period(60, quiet), pyta.Period(60, quiet)])
-    # Path time 30 of 60 minutes; a third of the trips still travelling are on the
-    # 10-minute link and still have to enter the second link.
-    np.testing.assert_allclose(first.link_preload, [0.0, 0.0])
-    np.testing.assert_allclose(second.link_preload, [0.0, 10.0])
-    np.testing.assert_allclose(second.turn_preload, [10.0])
-    np.testing.assert_allclose(third.link_preload, [0.0, 0.0])
-    # The assignment itself does not include the preload, and there is no objective.
-    np.testing.assert_allclose(first.link_volume, [60.0, 60.0])
-    np.testing.assert_allclose(second.link_volume, [0.0, 0.0])
-    assert first.objective is None
-
-
-def test_periods_are_validated_and_sioux_falls_period_matches_assign(sioux):
+def test_zero_preload_changes_nothing_and_bad_preloads_are_rejected(sioux):
     net, demand = sioux
-    with pytest.raises(ValueError, match="duration"):
-        pyta.assign_periods(net, [pyta.Period(0, demand)])
-    single = pyta.assign(net, demand, gap=1e-6)
-    assert single.link_preload is None
-    (period,) = pyta.assign_periods(net, [pyta.Period(60, demand)], gap=1e-6)
-    np.testing.assert_allclose(period.link_volume, single.link_volume)
-    np.testing.assert_allclose(period.link_preload, 0.0)
+    plain = pyta.assign(net, demand, gap=1e-6)
+    zero = pyta.assign(net, demand, gap=1e-6, link_preload=np.zeros(net.num_links),
+                       turn_preload=np.zeros(net.num_turns))
+    np.testing.assert_array_equal(zero.link_flow, plain.link_flow)
+    assert zero.objective == plain.objective
+    with pytest.raises(ValueError, match="link_preload has 3 entries"):
+        pyta.assign(net, demand, link_preload=np.zeros(3))
+    with pytest.raises(ValueError, match="non-negative"):
+        pyta.assign(net, demand, turn_preload=np.full(net.num_turns, -1.0))
+
+
+# ------------------------------------------------------------------ tables
+
+
+def home_to_work():
+    """The getting-started example: three routes from node 0 to node 3."""
+    links = pd.DataFrame({"from_node": [0, 1, 0, 2, 2], "to_node": [1, 3, 2, 3, 1],
+                          "free_flow_time": [6.0, 6.0, 4.0, 4.0, 1.0],
+                          "capacity": [2000, 2000, 1500, 800, 1000]})
+    net = pyta.Network.from_tables(links)
+    return net, pyta.Demand.from_table(net, {"origin": [0], "destination": [3], "flow": [3000.0]})
+
+
+def test_tables_match_the_arrays():
+    net, demand = home_to_work()
+    result = pyta.assign(net, demand, gap=1e-10)
+
+    links = result.link_table()
+    assert list(links.columns) == ["from_node", "to_node", "flow", "volume", "voc", "time"]
+    np.testing.assert_array_equal(links["flow"], result.link_flow)
+    np.testing.assert_allclose(links["voc"], result.link_volume / net.capacity)
+
+    turns = result.turn_table()
+    assert list(turns.columns) == ["from_link", "to_link", "node", "flow", "volume", "time"]
+    np.testing.assert_array_equal(turns["node"], [1, 2, 2, 1])
+
+    # Every used path has the same time at equilibrium, and the times add up.
+    paths = result.path_table()
+    assert sorted(paths["links"]) == [(0, 1), (2, 3), (2, 4, 1)]
+    np.testing.assert_allclose(paths["time"], paths["time"].iloc[0], rtol=1e-6)
+    expected = [sum(result.link_time[list(p)]) for p in paths["links"]]
+    np.testing.assert_allclose(paths["time"], expected)
+    long = paths.explode("links")
+    assert long.loc[long["links"] == 4, "flow"].sum() == pytest.approx(result.link_flow[4])
+
+
+def test_tables_label_classes_and_preloads():
+    net, demand = home_to_work()
+    trucks = pyta.TrafficClass(
+        pyta.Demand.from_table(net, {"origin": [0], "destination": [3], "flow": [200.0]}),
+        pce=2.5, allowed_links=np.array([True, True, False, False, False]), name="trucks")
+    result = pyta.assign(net, [demand, trucks], link_preload=np.full(5, 10.0))
+    assert result.class_names == ["0", "trucks"]
+
+    links = result.link_table()
+    assert {"flow_0", "flow_trucks", "preload"} <= set(links.columns)
+    np.testing.assert_allclose(links["flow"], links["flow_0"] + links["flow_trucks"])
+    np.testing.assert_allclose(links["voc"], (result.link_volume + 10.0) / net.capacity)
+
+    paths = result.path_table()
+    assert set(paths["class"]) == {"0", "trucks"}
+    assert list(result.path_table(1)["links"]) == [(0, 1)]

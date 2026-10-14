@@ -146,8 +146,9 @@ impl Bpr {
 }
 
 /// A delay function whose elements already carry some fixed volume that is not part of the
-/// assignment: `c_i(flow) = inner.c_i(flow + preload_i)`. Used for trips that were on the
-/// network before the period began.
+/// assignment: `c_i(flow) = inner.c_i(flow + preload_i)`. Use it to load the network with
+/// fixed traffic, such as buses or through traffic from another model, by passing it to a
+/// solver in place of `inner`.
 ///
 /// The objective counts only the part above the preload: `Σ ∫_{preload}^{preload+flow} c_i`.
 #[derive(Debug, Clone, Copy)]
@@ -185,27 +186,6 @@ impl<V: Vdf> Vdf for Preloaded<'_, V> {
     fn integral(&self, flows: &[f64]) -> f64 {
         let total: Vec<f64> = flows.iter().zip(self.preload).map(|(f, p)| f + p).collect();
         self.inner.integral(&total) - self.inner.integral(self.preload)
-    }
-}
-
-impl Bpr {
-    /// The same function with every capacity multiplied by `factor` (> 0). Used to turn
-    /// capacities per hour into capacities per period of `factor` hours.
-    pub fn with_capacity_scaled(&self, factor: f64) -> Bpr {
-        assert!(
-            factor.is_finite() && factor > 0.0,
-            "factor must be positive"
-        );
-        Bpr {
-            params: self
-                .params
-                .iter()
-                .map(|q| BprParams {
-                    inv_capacity: q.inv_capacity / factor,
-                    ..*q
-                })
-                .collect(),
-        }
     }
 }
 
