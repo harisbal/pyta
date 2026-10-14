@@ -1014,6 +1014,7 @@ fn build_pool(threads: Option<usize>) -> PyResult<Option<rayon::ThreadPool>> {
 
 #[pymodule]
 fn _pyta(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add_class::<Network>()?;
     m.add_class::<Demand>()?;
     m.add_class::<TrafficClass>()?;

@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use PyTA in your research, please cite it as below."
+title: "PyTA: Path-based static traffic assignment"
+type: software
+authors:
+  - family-names: Ballis
+    given-names: Haris
+version: 0.1.0
+date-released: 2026-10-14
+license: MIT
+repository-code: "https://github.com/harisbal/pyta"
+url: "https://harisbal.github.io/pyta/"
+keywords:
+  - traffic assignment
+  - user equilibrium
+  - gradient projection
+  - transportation planning

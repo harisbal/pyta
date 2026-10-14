@@ -2,6 +2,8 @@
 
 **Path-based traffic assignment with turn delays and multiple vehicle classes.**
 
+Version {{ version }} · [Release notes](https://github.com/harisbal/pyta/releases) · [Source on GitHub](https://github.com/harisbal/pyta)
+
 PyTA is an open-source package for **static user-equilibrium traffic assignment** on road networks.
 Given a network and an origin–destination demand matrix, it computes the link and path flows that
 satisfy Wardrop's first principle, solving the problem in path space with gradient projection.
@@ -106,7 +108,7 @@ mkdocs build --strict
 
 If you use PyTA in your research, please cite it as:
 
-> Ballis, H. (2026). *PyTA: Path-based static traffic assignment* (Version 0.1.0)
+> Ballis, H. (2026). *PyTA: Path-based static traffic assignment* (Version {{ version }})
 > [Computer software]. https://github.com/harisbal/pyta
 
 ```bibtex
@@ -114,7 +116,7 @@ If you use PyTA in your research, please cite it as:
   author  = {Ballis, Haris},
   title   = {{PyTA}: Path-based static traffic assignment},
   year    = {2026},
-  version = {0.1.0},
+  version = {{{ version }}},
   url     = {https://github.com/harisbal/pyta}
 }
 ```

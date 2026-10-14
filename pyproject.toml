@@ -4,11 +4,15 @@ build-backend = "maturin"
 
 [project]
 name = "pyta"
-version = "0.1.0"
+dynamic = ["version"]  # taken from the Cargo workspace
 description = "Path-based traffic assignment with turn delays and multiple vehicle classes."
 license = { text = "MIT" }
 requires-python = ">=3.9"
 dependencies = ["numpy>=1.23"]
+
+[project.urls]
+Documentation = "https://harisbal.github.io/pyta/"
+Repository = "https://github.com/harisbal/pyta"
 
 [project.optional-dependencies]
 pandas = ["pandas>=1.5"]

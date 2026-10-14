@@ -1,5 +1,9 @@
 # PyTA
 
+[![Release](https://img.shields.io/github/v/release/harisbal/pyta)](https://github.com/harisbal/pyta/releases)
+[![Docs](https://img.shields.io/badge/docs-harisbal.github.io%2Fpyta-blue)](https://harisbal.github.io/pyta/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
 Path-based traffic assignment with turn delays and multiple vehicle classes.
 
 **Documentation: <https://harisbal.github.io/pyta/>**
@@ -161,9 +165,15 @@ mkdocs build --strict
 
 Benchmarks: `cargo run --release -p pyta-io --example order_benchmark -- Anaheim 1e-4 1e-6`.
 
+**Releases.** The version lives in one place, `[workspace.package]` in `Cargo.toml`; the crates, the
+Python package (`pyta.__version__`) and the docs read it from there. To release, bump it, update
+`version` and `date-released` in `CITATION.cff` and the citation in this README, then tag `vX.Y.Z` and
+publish a GitHub release.
+
 ## Citing PyTA
 
-If you use PyTA in your research, please cite it as:
+If you use PyTA in your research, please cite it as below (GitHub's "Cite this repository" button gives
+the same from [`CITATION.cff`](CITATION.cff)):
 
 > Ballis, H. (2026). *PyTA: Path-based static traffic assignment* (Version 0.1.0)
 > [Computer software]. https://github.com/harisbal/pyta

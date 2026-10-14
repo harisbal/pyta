@@ -6,6 +6,8 @@ import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
 
+__version__: str
+
 class Network:
     """A road network with its link delay functions and turn table.
 

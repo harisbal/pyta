@@ -18,6 +18,7 @@ from typing import Any, Mapping, Optional
 import numpy as np
 
 from ._pyta import (
+    __version__,
     AssignResult,
     Demand,
     Network,
@@ -26,6 +27,7 @@ from ._pyta import (
 )
 
 __all__ = [
+    "__version__",
     "AssignResult",
     "Demand",
     "Network",

@@ -7,6 +7,9 @@ edit_uri: edit/main/docs/
 docs_dir: docs
 strict: true
 
+hooks:
+  - hooks/version.py
+
 theme:
   name: material
   features:
