@@ -2,9 +2,25 @@
 
 **Static traffic assignment with a Rust core and Python bindings.**
 
-Give PyTA a road network and a table of trips, and it works out which routes the traffic takes once
-everyone has settled on their quickest one. It keeps the routes, not just link totals, and handles
-**turn bans and delays**, **several vehicle classes** (cars, trucks, ...) and **consecutive time periods**.
+PyTA is an open-source package for **static user-equilibrium traffic assignment** on road networks,
+with a computational core written in Rust and an interface for Python. Given a network and an
+origin–destination demand matrix, it computes the link and path flows that satisfy Wardrop's first
+principle, solving the problem in path space with gradient projection.
+
+Its main features are:
+
+- **Path-based equilibration** by gradient projection, with Frank-Wolfe as a reference method. Path
+  flows are retained, so select-link and route-level analyses need no post-processing.
+- **Turn-aware routing**: turn prohibitions, fixed turn penalties and flow-dependent turn delays, handled
+  exactly by labelling links rather than nodes in the shortest-path search.
+- **Multi-class assignment**, with class-specific demand, passenger-car equivalents, generalised link
+  costs (e.g. tolls) and link restrictions.
+- **Sequential time periods**, in which trips not completed by the end of one period load the next.
+- **Standard input formats**: TNTP benchmark files, GMNS datasets, or plain tables (pandas DataFrames,
+  NumPy arrays).
+- **Validation** against published equilibrium solutions of the standard test networks.
+
+## Example
 
 ```python
 import pyta
@@ -14,7 +30,7 @@ demand = pyta.Demand.from_tntp("SiouxFalls_trips.tntp", net)
 
 result = pyta.assign(net, demand)
 result.link_flow               # vehicles per link
-result.paths()                 # every route and how many use it
+result.paths()                 # equilibrium path flows
 ```
 
 <div class="grid cards" markdown>
@@ -39,7 +55,7 @@ result.paths()                 # every route and how many use it
 
     ---
 
-    User equilibrium, the solver and the relative gap, in brief.
+    Problem formulation, solution method and convergence measure.
 
     [:octicons-arrow-right-24: How it works](concepts/how-it-works.md)
 
@@ -47,8 +63,25 @@ result.paths()                 # every route and how many use it
 
     ---
 
-    Reproduces published solutions on standard test networks.
+    Accuracy and run times on the standard test networks.
 
     [:octicons-arrow-right-24: Benchmarks](benchmarks.md)
 
 </div>
+
+## Citing PyTA
+
+If you use PyTA in your research, please cite it as:
+
+> Ballis, H. (2026). *PyTA: Static traffic assignment with a Rust core and Python bindings* (Version 0.1.0)
+> [Computer software]. https://github.com/harisbal/pyta
+
+```bibtex
+@software{ballis_pyta_2026,
+  author  = {Ballis, Haris},
+  title   = {{PyTA}: Static traffic assignment with a {Rust} core and {Python} bindings},
+  year    = {2026},
+  version = {0.1.0},
+  url     = {https://github.com/harisbal/pyta}
+}
+```
