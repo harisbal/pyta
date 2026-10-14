@@ -1,4 +1,4 @@
-"""PyTA: static traffic assignment with a Rust core.
+"""PyTA: path-based static traffic assignment.
 
 The Rust extension takes numpy arrays. The helpers here accept pandas DataFrames
 (or any mapping of column name to array-like) so flat tables can be passed straight in.

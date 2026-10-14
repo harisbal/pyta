@@ -1,13 +1,12 @@
 # PyTA
 
-Static traffic assignment with a Rust core and Python bindings.
+Path-based traffic assignment with turn delays, multiple vehicle classes and time periods.
 
 **Documentation: <https://harisbal.github.io/pyta/>**
 
-PyTA is an open-source package for **static user-equilibrium traffic assignment** on road networks,
-with a computational core written in Rust and an interface for Python. Given a network and an
-origin–destination demand matrix, it computes the link and path flows that satisfy Wardrop's first
-principle, solving the problem in path space with gradient projection.
+PyTA is an open-source package for **static user-equilibrium traffic assignment** on road networks.
+Given a network and an origin–destination demand matrix, it computes the link and path flows that
+satisfy Wardrop's first principle, solving the problem in path space with gradient projection.
 
 Its main features are:
 
@@ -21,6 +20,7 @@ Its main features are:
 - **Standard input formats**: TNTP benchmark files, GMNS datasets, or plain tables (pandas DataFrames,
   NumPy arrays).
 - **Validation** against published equilibrium solutions of the standard test networks.
+- **Performance**: a multi-threaded Rust core, usable from Python or directly from Rust.
 
 ## Install
 
@@ -140,13 +140,13 @@ traffic. See [the roadmap](docs/design/roadmap.md).
 
 If you use PyTA in your research, please cite it as:
 
-> Ballis, H. (2026). *PyTA: Static traffic assignment with a Rust core and Python bindings* (Version 0.1.0)
+> Ballis, H. (2026). *PyTA: Path-based static traffic assignment* (Version 0.1.0)
 > [Computer software]. https://github.com/harisbal/pyta
 
 ```bibtex
 @software{ballis_pyta_2026,
   author  = {Ballis, Haris},
-  title   = {{PyTA}: Static traffic assignment with a {Rust} core and {Python} bindings},
+  title   = {{PyTA}: Path-based static traffic assignment},
   year    = {2026},
   version = {0.1.0},
   url     = {https://github.com/harisbal/pyta}
