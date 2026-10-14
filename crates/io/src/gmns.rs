@@ -27,7 +27,7 @@ use std::fs;
 use std::io::Read;
 use std::path::Path;
 
-use pyta_core::{Edge, Network, NetworkError, TurnException, TurnRule};
+use pytraf_core::{Edge, Network, NetworkError, TurnException, TurnRule};
 
 use crate::tntp::Demand;
 
@@ -742,7 +742,7 @@ pub fn parse_zone_demand(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pyta_core::{TurnOptions, TurnTable};
+    use pytraf_core::{TurnOptions, TurnTable};
 
     const CONFIG: &str = "long_length,speed\nkm,kph\n";
 

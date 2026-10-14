@@ -6,11 +6,11 @@
 //!   1e-8 ->  98, 0.014 veh
 //! Frank-Wolfe needs 1 063 iterations for 1e-4 and 9 825 for 1e-5.
 
-use pyta_core::{
+use pytraf_core::{
     Bpr, GradientProjectionOptions, GradientProjectionResult, OdDemand, OriginOrder, TurnOptions,
     TurnTable, Vdf, gradient_projection,
 };
-use pyta_io::tntp::{TntpNetwork, read_flows, read_net, read_trips};
+use pytraf_io::tntp::{TntpNetwork, read_flows, read_net, read_trips};
 
 fn data(file: &str) -> String {
     format!(

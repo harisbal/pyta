@@ -1,4 +1,4 @@
-"""The result of :func:`pyta.assign`, grouped by what it describes.
+"""The result of :func:`pytraf.assign`, grouped by what it describes.
 
 ``result.links`` and ``result.turns`` hold the flows and times per link and per turn,
 ``result.paths`` the paths, ``result.unrouted`` the demand that was left out and
@@ -16,7 +16,7 @@ from typing import Any, Dict, Iterator, List, Optional, Sequence, Union
 import numpy as np
 from numpy.typing import NDArray
 
-from ._pyta import Network, _RawResult
+from ._pytraf import Network, _RawResult
 
 __all__ = [
     "AssignResult",
@@ -326,7 +326,7 @@ class Diagnostics:
 
 
 class AssignResult:
-    """The outcome of :func:`pyta.assign`; build it with ``network.assign(...)``.
+    """The outcome of :func:`pytraf.assign`; build it with ``network.assign(...)``.
 
     Attributes:
         converged: Whether the relative gap reached the requested ``gap``.

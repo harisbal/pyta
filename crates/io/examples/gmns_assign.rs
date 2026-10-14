@@ -1,6 +1,6 @@
 //! Loads a GMNS dataset and runs gradient projection on a demand file.
 //!
-//!   cargo run --release -p pyta-io --example gmns_assign -- <dir> <demand.csv> [tolerance]
+//!   cargo run --release -p pytraf-io --example gmns_assign -- <dir> <demand.csv> [tolerance]
 //!
 //! Unit and column names come from environment variables, since real datasets often
 //! need them (the official examples declare miles for lengths that are in feet):
@@ -12,10 +12,10 @@
 use std::env;
 use std::time::Instant;
 
-use pyta_core::{
+use pytraf_core::{
     Bpr, GradientProjectionOptions, OdDemand, TurnOptions, TurnTable, gradient_projection,
 };
-use pyta_io::gmns::{DemandOptions, GmnsOptions, read_demand, read_network};
+use pytraf_io::gmns::{DemandOptions, GmnsOptions, read_demand, read_network};
 
 fn main() {
     let mut args = env::args().skip(1);

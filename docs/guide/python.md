@@ -6,7 +6,7 @@ This guide builds on the Home → Work example from [Getting started](../getting
 ```python
 import numpy as np
 import pandas as pd
-import pyta
+import pytraf
 ```
 
 ## Turns
@@ -23,7 +23,7 @@ Turn 2 is centre → shortcut. Ban it and the 508 shortcut drivers move to the o
 
 ```python
 turns = pd.DataFrame({"from_link": [2], "to_link": [4], "banned": [True]})
-banned = pyta.Network.from_tables(links, turns).assign(demand)
+banned = pytraf.Network.from_tables(links, turns).assign(demand)
 banned.links.flow.round()
 # array([1675., 1675., 1325., 1325.,    0.])
 ```
@@ -47,10 +47,10 @@ Add 200 trucks. Each takes the road space of 2.5 cars, and trucks may not drive 
 
 ```python
 truck_trips = pd.DataFrame({"origin": [0], "destination": [3], "flow": [200.0]})
-truck_demand = pyta.Demand.from_table(net, truck_trips)
+truck_demand = pytraf.Demand.from_table(net, truck_trips)
 
-cars   = pyta.TrafficClass(demand, name="cars")
-trucks = pyta.TrafficClass(truck_demand, pce=2.5, name="trucks",
+cars   = pytraf.TrafficClass(demand, name="cars")
+trucks = pytraf.TrafficClass(truck_demand, pce=2.5, name="trucks",
                            allowed_links=np.array([True, True, False, False, False]))
 mixed = net.assign([cars, trucks])
 mixed.links.table().round()
@@ -168,8 +168,8 @@ Trips with `origin == destination` are skipped.
 ### From a TNTP file
 
 ```python
-net = pyta.Network.from_tntp("SiouxFalls_net.tntp")
-demand = pyta.Demand.from_tntp(net, "SiouxFalls_trips.tntp")
+net = pytraf.Network.from_tntp("SiouxFalls_net.tntp")
+demand = pytraf.Demand.from_tntp(net, "SiouxFalls_trips.tntp")
 ```
 
 Nodes are renumbered from 0, and centroids are marked automatically.
@@ -177,8 +177,8 @@ Nodes are renumbered from 0, and centroids are marked automatically.
 ### From a GMNS dataset
 
 ```python
-net = pyta.Network.from_gmns("path/to/gmns", length_unit="foot", speed_unit="mph")
-demand = pyta.Demand.from_gmns(net, "path/to/demand.csv",
+net = pytraf.Network.from_gmns("path/to/gmns", length_unit="foot", speed_unit="mph")
+demand = pytraf.Demand.from_gmns(net, "path/to/demand.csv",
                                origin="orig_taz", destination="dest_taz", flow="total",
                                skip_unknown_zones=True)
 ```
@@ -194,7 +194,7 @@ net.assign(classes, *, gap=1e-6, max_iter=200, order=Order.FIXED, seed=0, chunk_
 ```
 
 Everything after `classes` is keyword-only, so a stray positional number cannot be mistaken for another
-option. `pyta.assign(net, classes, ...)` is the same call.
+option. `pytraf.assign(net, classes, ...)` is the same call.
 
 | argument | meaning |
 |---|---|
@@ -205,7 +205,7 @@ option. `pyta.assign(net, classes, ...)` is the same call.
 | `link_preload`, `turn_preload` | fixed background volume in car units (see [background traffic](#background-traffic)) |
 | `unreachable` | an `Unreachable`: `ERROR` (default) or `SKIP`; see [below](#demand-that-cannot-be-routed) |
 
-`order` and `unreachable` are string enums: `pyta.Order.SHUFFLE` and `"shuffle"` are the same, and a misspelt
+`order` and `unreachable` are string enums: `pytraf.Order.SHUFFLE` and `"shuffle"` are the same, and a misspelt
 value raises a `ValueError` that lists the valid ones.
 
 For several time periods, call `assign` once per period with that period's demand, and scale the

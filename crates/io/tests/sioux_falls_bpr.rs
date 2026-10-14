@@ -1,8 +1,8 @@
 //! The published equilibrium file lists each link's volume and cost. Our BPR,
 //! built from the network file, must reproduce those costs from those volumes.
 
-use pyta_core::{Bpr, Vdf};
-use pyta_io::tntp::{TntpNetwork, read_flows, read_net};
+use pytraf_core::{Bpr, Vdf};
+use pytraf_io::tntp::{TntpNetwork, read_flows, read_net};
 
 fn data(file: &str) -> String {
     format!(

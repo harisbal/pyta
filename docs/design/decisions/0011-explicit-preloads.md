@@ -1,6 +1,6 @@
 # 0011. Explicit preloads instead of carried-over trips
 
-**Decision.** PyTA no longer carries unfinished trips from one period into the next. `assign_periods`,
+**Decision.** PyTraf no longer carries unfinished trips from one period into the next. `assign_periods`,
 `Period` and the carry-over computation are removed. In their place, `assign` takes optional
 `link_preload` and `turn_preload`: fixed volumes in car units that are not routed but add to the volume
 the delay functions see. In Rust the same is done by wrapping a delay function in `Preloaded`.

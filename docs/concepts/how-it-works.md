@@ -32,7 +32,7 @@ fixed penalty or a delay of the same form in the turn's own volume.
 
 ## Solution method
 
-PyTA solves the problem in path space with **gradient projection** (Jayakrishnan et al., 1994). For each
+PyTraf solves the problem in path space with **gradient projection** (Jayakrishnan et al., 1994). For each
 OD pair it maintains a small set of active paths. Each iteration computes the shortest paths at the current costs,
 adds any new shortest path to the active set, and shifts flow from the costlier paths towards the
 shortest one using a second-order (Newton) step. Origins are processed one after another, and link

@@ -9,7 +9,7 @@ use std::fs;
 use std::path::Path;
 use std::str::FromStr;
 
-use pyta_core::{Edge, Network, NetworkError};
+use pytraf_core::{Edge, Network, NetworkError};
 
 /// A TNTP `*_net.tntp` file. The per-link vectors are indexed by link id.
 #[derive(Debug)]

@@ -1,14 +1,14 @@
-# PyTA
+# PyTraf
 
-[![Release](https://img.shields.io/github/v/release/harisbal/pyta)](https://github.com/harisbal/pyta/releases)
-[![Docs](https://img.shields.io/badge/docs-harisbal.github.io%2Fpyta-blue)](https://harisbal.github.io/pyta/)
+[![Release](https://img.shields.io/github/v/release/harisbal/pytraf)](https://github.com/harisbal/pytraf/releases)
+[![Docs](https://img.shields.io/badge/docs-harisbal.github.io%2Fpytraf-blue)](https://harisbal.github.io/pytraf/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 Path-based traffic assignment with turn delays and multiple vehicle classes.
 
-**Documentation: <https://harisbal.github.io/pyta/>**
+**Documentation: <https://harisbal.github.io/pytraf/>**
 
-PyTA is an open-source package for **static user-equilibrium traffic assignment** on road networks.
+PyTraf is an open-source package for **static user-equilibrium traffic assignment** on road networks.
 Given a network and an origin–destination demand matrix, it computes the link and path flows that
 satisfy Wardrop's first principle, solving the problem in path space with gradient projection.
 
@@ -35,17 +35,17 @@ You need Rust ([rustup](https://rustup.rs)), Python 3.9 or newer, and
 ```sh
 uv venv .venv && source .venv/bin/activate        # or python -m venv
 uv pip install numpy pandas pytest maturin
-maturin develop --release                          # builds and installs `pyta`
+maturin develop --release                          # builds and installs `pytraf`
 pytest                                             # optional: run the Python tests
 ```
 
 ## Python quick start
 
 ```python
-import pyta
+import pytraf
 
-net = pyta.Network.from_tntp("data/tntp/SiouxFalls/SiouxFalls_net.tntp")
-demand = pyta.Demand.from_tntp(net, "data/tntp/SiouxFalls/SiouxFalls_trips.tntp")
+net = pytraf.Network.from_tntp("data/tntp/SiouxFalls/SiouxFalls_net.tntp")
+demand = pytraf.Demand.from_tntp(net, "data/tntp/SiouxFalls/SiouxFalls_trips.tntp")
 
 result = net.assign(demand, gap=1e-6)
 result.converged, result.iterations, result.relative_gap
@@ -59,16 +59,16 @@ print(result.summary())   # a short account of the run
 From your own tables (DataFrames or dicts of arrays):
 
 ```python
-net = pyta.Network.from_tables(links_df, turns_df)           # see docs/guide/python.md for columns
-demand = pyta.Demand.from_table(net, trips_df)
+net = pytraf.Network.from_tables(links_df, turns_df)           # see docs/guide/python.md for columns
+demand = pytraf.Demand.from_table(net, trips_df)
 result = net.assign(demand, gap=1e-6)
 ```
 
 Several classes:
 
 ```python
-cars   = pyta.TrafficClass(car_demand)
-trucks = pyta.TrafficClass(truck_demand, pce=2.5,
+cars   = pytraf.TrafficClass(car_demand)
+trucks = pytraf.TrafficClass(truck_demand, pce=2.5,
                            extra_link_cost=toll_in_minutes,        # per link, same units as time
                            allowed_links=~truck_banned)            # bool per link
 result = net.assign([cars, trucks], gap=1e-6)
@@ -82,8 +82,8 @@ A worked example is in [Getting started](docs/getting-started.md); every table c
 ## Rust quick start
 
 ```rust
-use pyta_core::*;
-use pyta_io::tntp::{read_net, read_trips};
+use pytraf_core::*;
+use pytraf_io::tntp::{read_net, read_trips};
 
 let net = read_net("data/tntp/SiouxFalls/SiouxFalls_net.tntp")?;
 let trips = read_trips("data/tntp/SiouxFalls/SiouxFalls_trips.tntp")?;
@@ -110,8 +110,8 @@ checked against independent models; see [docs/benchmarks.md](docs/benchmarks.md)
 ```
 crates/core     algorithms, no IO: network, turns, shortest paths, solvers, path store
 crates/io       TNTP reader (and the benchmark example)
-crates/python   PyO3 bindings (the `pyta._pyta` extension)
-python/pyta     Python package: DataFrame helpers and type stubs
+crates/python   PyO3 bindings (the `pytraf._pytraf` extension)
+python/pytraf     Python package: DataFrame helpers and type stubs
 python/tests    pytest suite
 data/tntp       benchmark networks from github.com/bstabler/TransportationNetworks
 docs            the documentation site source (MkDocs): guides, concepts, design, benchmarks
@@ -130,7 +130,7 @@ cargo doc --workspace --no-deps --open     # Rust API reference
 
 ## Limitations
 
-PyTA solves the static problem: no queue spillback, and delays depend only on a link's or turn's own
+PyTraf solves the static problem: no queue spillback, and delays depend only on a link's or turn's own
 traffic. See [the roadmap](docs/design/roadmap.md).
 
 ## Next steps
@@ -142,14 +142,14 @@ Planned extensions, roughly in order:
 - **Link-direction optimisation**, built on the assignment engine.
 - **Interacting junction models** for signalised and priority junctions.
 
-**Stochastic user equilibrium** is deliberately deferred: PyTA keeps the deterministic equilibrium for
+**Stochastic user equilibrium** is deliberately deferred: PyTraf keeps the deterministic equilibrium for
 now. When it is added, path-based logit SUE fits the existing solver best. The full list, with the
 current limitations, is in the [roadmap](docs/design/roadmap.md).
 
 ## Contributing
 
 Bug reports, questions and pull requests are welcome on
-[GitHub](https://github.com/harisbal/pyta/issues). For larger changes, please open an issue first to
+[GitHub](https://github.com/harisbal/pytraf/issues). For larger changes, please open an issue first to
 discuss the approach.
 
 - **Tests.** Check new solver features against something independent of the code: a published solution,
@@ -164,28 +164,28 @@ maturin develop --release && pytest
 mkdocs build --strict
 ```
 
-Benchmarks: `cargo run --release -p pyta-io --example order_benchmark -- Anaheim 1e-4 1e-6`.
+Benchmarks: `cargo run --release -p pytraf-io --example order_benchmark -- Anaheim 1e-4 1e-6`.
 
 **Releases.** The version lives in one place, `[workspace.package]` in `Cargo.toml`; the crates, the
-Python package (`pyta.__version__`) and the docs read it from there. To release, bump it, update
+Python package (`pytraf.__version__`) and the docs read it from there. To release, bump it, update
 `version` and `date-released` in `CITATION.cff` and the citation in this README, then tag `vX.Y.Z` and
 publish a GitHub release.
 
-## Citing PyTA
+## Citing PyTraf
 
-If you use PyTA in your research, please cite it as below (GitHub's "Cite this repository" button gives
+If you use PyTraf in your research, please cite it as below (GitHub's "Cite this repository" button gives
 the same from [`CITATION.cff`](CITATION.cff)):
 
-> Ballis, H. (2026). *PyTA: Path-based static traffic assignment* (Version 0.2.0)
-> [Computer software]. https://github.com/harisbal/pyta
+> Ballis, H. (2026). *PyTraf: Path-based static traffic assignment* (Version 0.2.0)
+> [Computer software]. https://github.com/harisbal/pytraf
 
 ```bibtex
-@software{ballis_pyta_2026,
+@software{ballis_pytraf_2026,
   author  = {Ballis, Haris},
-  title   = {{PyTA}: Path-based static traffic assignment},
+  title   = {{PyTraf}: Path-based static traffic assignment},
   year    = {2026},
   version = {0.2.0},
-  url     = {https://github.com/harisbal/pyta}
+  url     = {https://github.com/harisbal/pytraf}
 }
 ```
 

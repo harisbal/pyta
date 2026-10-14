@@ -6,8 +6,8 @@
 //!   1e-5 -> 9 825, 4231384, 1.7 veh
 //! The published objective is 4231335.29.
 
-use pyta_core::{Bpr, FrankWolfeOptions, OdDemand, TurnOptions, TurnTable, Vdf, frank_wolfe};
-use pyta_io::tntp::{read_flows, read_net, read_trips};
+use pytraf_core::{Bpr, FrankWolfeOptions, OdDemand, TurnOptions, TurnTable, Vdf, frank_wolfe};
+use pytraf_io::tntp::{read_flows, read_net, read_trips};
 
 fn data(file: &str) -> String {
     format!(
@@ -17,7 +17,7 @@ fn data(file: &str) -> String {
 }
 
 struct Case {
-    network: pyta_io::tntp::TntpNetwork,
+    network: pytraf_io::tntp::TntpNetwork,
     demand: OdDemand,
     turns: TurnTable,
     vdf: Bpr,
@@ -53,7 +53,7 @@ fn load() -> Case {
     }
 }
 
-fn run(case: &Case, gap_tolerance: f64) -> pyta_core::FrankWolfeResult {
+fn run(case: &Case, gap_tolerance: f64) -> pytraf_core::FrankWolfeResult {
     let options = FrankWolfeOptions {
         max_iterations: 20_000,
         gap_tolerance,

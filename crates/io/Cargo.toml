@@ -1,5 +1,5 @@
 [package]
-name = "pyta-io"
+name = "pytraf-io"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,7 +7,7 @@ repository.workspace = true
 
 [dependencies]
 csv = "1.4.0"
-pyta-core = { path = "../core" }
+pytraf-core = { path = "../core" }
 
 [dev-dependencies]
 rayon = "1.12.0"

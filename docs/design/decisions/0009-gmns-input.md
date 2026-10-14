@@ -1,6 +1,6 @@
 # 0009. GMNS input: zones span nodes, movements restrict listed links
 
-**Decision.** `pyta-io` reads GMNS datasets (`node`, `link`, optional `movement` and `config`) in Rust. Four rules
+**Decision.** `pytraf-io` reads GMNS datasets (`node`, `link`, optional `movement` and `config`) in Rust. Four rules
 follow from the specification and from trying the official Lima example.
 
 1. **A zone is the set of nodes that carry its `zone_id`.** This amends [0001](0001-zone-equals-node.md). Demand

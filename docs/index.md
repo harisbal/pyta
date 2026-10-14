@@ -1,10 +1,10 @@
-# PyTA
+# PyTraf
 
 **Path-based traffic assignment with turn delays and multiple vehicle classes.**
 
-Version {{ version }} · [Release notes](https://github.com/harisbal/pyta/releases) · [Source on GitHub](https://github.com/harisbal/pyta)
+Version {{ version }} · [Release notes](https://github.com/harisbal/pytraf/releases) · [Source on GitHub](https://github.com/harisbal/pytraf)
 
-PyTA is an open-source package for **static user-equilibrium traffic assignment** on road networks.
+PyTraf is an open-source package for **static user-equilibrium traffic assignment** on road networks.
 Given a network and an origin–destination demand matrix, it computes the link and path flows that
 satisfy Wardrop's first principle, solving the problem in path space with gradient projection.
 
@@ -26,10 +26,10 @@ Its main features are:
 ## Example
 
 ```python
-import pyta
+import pytraf
 
-net = pyta.Network.from_tntp("SiouxFalls_net.tntp")
-demand = pyta.Demand.from_tntp(net, "SiouxFalls_trips.tntp")
+net = pytraf.Network.from_tntp("SiouxFalls_net.tntp")
+demand = pytraf.Demand.from_tntp(net, "SiouxFalls_trips.tntp")
 
 result = net.assign(demand)
 result.links.flow              # vehicles per link
@@ -82,14 +82,14 @@ Planned extensions, roughly in order:
 - **Link-direction optimisation**, built on the assignment engine.
 - **Interacting junction models** for signalised and priority junctions.
 
-**Stochastic user equilibrium** is deliberately deferred: PyTA keeps the deterministic equilibrium for
+**Stochastic user equilibrium** is deliberately deferred: PyTraf keeps the deterministic equilibrium for
 now. When it is added, path-based logit SUE fits the existing solver best. The full list, with the
 current limitations, is in the [roadmap](design/roadmap.md).
 
 ## Contributing
 
 Bug reports, questions and pull requests are welcome on
-[GitHub](https://github.com/harisbal/pyta/issues). For larger changes, please open an issue first to
+[GitHub](https://github.com/harisbal/pytraf/issues). For larger changes, please open an issue first to
 discuss the approach.
 
 - **Tests.** Check new solver features against something independent of the code: a published solution,
@@ -104,19 +104,19 @@ maturin develop --release && pytest
 mkdocs build --strict
 ```
 
-## Citing PyTA
+## Citing PyTraf
 
-If you use PyTA in your research, please cite it as:
+If you use PyTraf in your research, please cite it as:
 
-> Ballis, H. (2026). *PyTA: Path-based static traffic assignment* (Version {{ version }})
-> [Computer software]. https://github.com/harisbal/pyta
+> Ballis, H. (2026). *PyTraf: Path-based static traffic assignment* (Version {{ version }})
+> [Computer software]. https://github.com/harisbal/pytraf
 
 ```bibtex
-@software{ballis_pyta_2026,
+@software{ballis_pytraf_2026,
   author  = {Ballis, Haris},
-  title   = {{PyTA}: Path-based static traffic assignment},
+  title   = {{PyTraf}: Path-based static traffic assignment},
   year    = {2026},
   version = {{{ version }}},
-  url     = {https://github.com/harisbal/pyta}
+  url     = {https://github.com/harisbal/pytraf}
 }
 ```

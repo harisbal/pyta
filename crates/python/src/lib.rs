@@ -1,5 +1,5 @@
-//! Python bindings for PyTA. The Rust types here are thin wrappers; the friendly
-//! Python API (DataFrame handling, docstrings) lives in `python/pyta/__init__.py`.
+//! Python bindings for PyTraf. The Rust types here are thin wrappers; the friendly
+//! Python API (DataFrame handling, docstrings) lives in `python/pytraf/__init__.py`.
 
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
@@ -9,7 +9,7 @@ use pyo3::exceptions::{PyIndexError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 
-use pyta_core as core;
+use pytraf_core as core;
 
 fn err(e: impl Debug) -> PyErr {
     PyValueError::new_err(format!("{e:?}"))
@@ -41,7 +41,7 @@ fn to_u32(values: &PyReadonlyArray1<'_, i64>, what: &str) -> PyResult<Vec<u32>> 
 // ---------------------------------------------------------------- Network
 
 /// A road network with its link delay functions and turn table.
-#[pyclass(module = "pyta._pyta", frozen)]
+#[pyclass(module = "pytraf._pytraf", frozen)]
 struct Network {
     network: core::Network,
     turns: core::TurnTable,
@@ -275,7 +275,7 @@ impl Network {
     /// Reads a TNTP `*_net.tntp` file (node ids become 0-based, links keep file order).
     #[staticmethod]
     fn from_tntp(path: &str) -> PyResult<Network> {
-        let net = pyta_io::tntp::read_net(path).map_err(|e| msg(e.to_string()))?;
+        let net = pytraf_io::tntp::read_net(path).map_err(|e| msg(e.to_string()))?;
         let n = net.network.num_links();
         let from: Vec<u32> = (0..n as u32).map(|l| net.network.from_node(l)).collect();
         let to: Vec<u32> = (0..n as u32).map(|l| net.network.to_node(l)).collect();
@@ -312,13 +312,13 @@ impl Network {
             }
             None => zone_nodes_are_centroids,
         };
-        let options = pyta_io::gmns::GmnsOptions {
+        let options = pytraf_io::gmns::GmnsOptions {
             length_unit,
             speed_unit,
             zone_nodes_are_endpoints,
             ..Default::default()
         };
-        let g = pyta_io::gmns::read_network(path, &options).map_err(|e| msg(e.to_string()))?;
+        let g = pytraf_io::gmns::read_network(path, &options).map_err(|e| msg(e.to_string()))?;
         let n = g.network.num_links();
         let from: Vec<u32> = (0..n as u32).map(|l| g.network.from_node(l)).collect();
         let to: Vec<u32> = (0..n as u32).map(|l| g.network.to_node(l)).collect();
@@ -441,7 +441,7 @@ impl Network {
 // ----------------------------------------------------------------- Demand
 
 /// Trips between nodes (zone = node), in long format.
-#[pyclass(module = "pyta._pyta", frozen)]
+#[pyclass(module = "pytraf._pytraf", frozen)]
 struct Demand {
     od: core::OdDemand,
     num_nodes: usize,
@@ -475,7 +475,7 @@ impl Demand {
     /// Reads a TNTP `*_trips.tntp` file for `network`.
     #[staticmethod]
     fn from_tntp(network: &Network, path: &str) -> PyResult<Demand> {
-        let trips = pyta_io::tntp::read_trips(path).map_err(|e| msg(e.to_string()))?;
+        let trips = pytraf_io::tntp::read_trips(path).map_err(|e| msg(e.to_string()))?;
         let num_nodes = network.network.num_nodes();
         let od = core::OdDemand::from_triples(
             num_nodes,
@@ -507,13 +507,13 @@ impl Demand {
             .gmns
             .as_ref()
             .ok_or_else(|| msg("network was not read with Network.from_gmns"))?;
-        let options = pyta_io::gmns::DemandOptions {
+        let options = pytraf_io::gmns::DemandOptions {
             origin: origin.to_string(),
             destination: destination.to_string(),
             flow: flow.to_string(),
             skip_unknown_zones,
         };
-        let read = pyta_io::gmns::read_zone_demand(path, &meta.zone_nodes, &options)
+        let read = pytraf_io::gmns::read_zone_demand(path, &meta.zone_nodes, &options)
             .map_err(|e| msg(e.to_string()))?;
         let num_nodes = network.network.num_nodes();
         let od = core::OdDemand::from_triples(
@@ -557,7 +557,7 @@ impl Demand {
 // ----------------------------------------------------------- TrafficClass
 
 /// One traffic class: demand plus how its vehicles load and move on the network.
-#[pyclass(module = "pyta._pyta", frozen)]
+#[pyclass(module = "pytraf._pytraf", frozen)]
 struct TrafficClass {
     demand: Py<Demand>,
     /// Used to label the class in result tables; defaults to its position.
@@ -590,7 +590,7 @@ impl TrafficClass {
 
 // ----------------------------------------------------------------- Result
 
-#[pyclass(module = "pyta._pyta", name = "_RawResult", frozen)]
+#[pyclass(module = "pytraf._pytraf", name = "_RawResult", frozen)]
 struct AssignResult {
     /// The network the result belongs to, for the tables built in Python.
     network: Py<Network>,
@@ -1158,7 +1158,7 @@ fn build_pool(threads: Option<usize>) -> PyResult<Option<rayon::ThreadPool>> {
 }
 
 #[pymodule]
-fn _pyta(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn _pytraf(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add_class::<Network>()?;
     m.add_class::<Demand>()?;
