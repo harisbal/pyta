@@ -143,11 +143,7 @@ read-only; copy one to change it.
 
 `print(result.summary())` gives a short account: convergence, trips per class, demand left out and the busiest link.
 
-!!! note "Renamed in 0.2.0"
-    Before 0.2.0 the result had a flat set of names (`link_flow`, `class_link_flow`, `link_table()`,
-    `path_table()`, `unrouted_flow`, ...), and `is_endpoint` and `Demand.skipped_flow` had other names. They
-    still work and raise a `DeprecationWarning` naming the replacement; they will be removed in 0.3.0. The
-    [changelog](../changelog.md) lists every old name with its replacement.
+The pre-0.2.0 flat names (`link_flow`, `link_table()`, ...) still work with a `DeprecationWarning`.
 
 ## Input reference
 
