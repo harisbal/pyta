@@ -1,7 +1,7 @@
 //! Checks Dijkstra against a deliberately naive Bellman-Ford on Sioux Falls.
 
-use pyta_core::dijkstra;
-use pyta_io::tntp::{TntpNetwork, read_net};
+use pytraf_core::dijkstra;
+use pytraf_io::tntp::{TntpNetwork, read_net};
 
 fn load() -> TntpNetwork {
     read_net(format!(

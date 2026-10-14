@@ -1,6 +1,6 @@
 //! Times gradient projection on one TNTP network, with memory use.
 //!
-//!   cargo run --release -p pyta-io --example scale_benchmark -- ChicagoRegional 1e-3 10 16
+//!   cargo run --release -p pytraf-io --example scale_benchmark -- ChicagoRegional 1e-3 10 16
 //!
 //! Arguments: network folder under `data/tntp`, gap tolerance (default 1e-4), maximum
 //! number of sweeps (default 50) and chunk size (default 0 = automatic). The run stops at whichever
@@ -8,12 +8,12 @@
 
 use std::time::Instant;
 
-use pyta_core::Vdf;
-use pyta_core::{
+use pytraf_core::Vdf;
+use pytraf_core::{
     Bpr, GradientProjectionOptions, OdDemand, OriginOrder, TurnOptions, TurnTable,
     gradient_projection,
 };
-use pyta_io::tntp::{read_flows, read_net, read_trips};
+use pytraf_io::tntp::{read_flows, read_net, read_trips};
 
 /// Peak resident memory of this process in MB (Linux).
 fn peak_rss_mb() -> f64 {

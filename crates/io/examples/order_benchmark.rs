@@ -1,18 +1,18 @@
 //! Compares origin orders for gradient projection on a TNTP benchmark network.
 //!
-//!   cargo run --release -p pyta-io --example order_benchmark -- SiouxFalls
-//!   cargo run --release -p pyta-io --example order_benchmark -- Anaheim 1e-4 1e-6
+//!   cargo run --release -p pytraf-io --example order_benchmark -- SiouxFalls
+//!   cargo run --release -p pytraf-io --example order_benchmark -- Anaheim 1e-4 1e-6
 //!
 //! The network name is a folder under `data/tntp`. Tolerances default to 1e-4 and 1e-6.
 //! Shuffle is run with several seeds and reported as min / median / max.
 
 use std::time::Instant;
 
-use pyta_core::{
+use pytraf_core::{
     Bpr, GradientProjectionOptions, OdDemand, OriginOrder, TurnOptions, TurnTable, Vdf,
     gradient_projection,
 };
-use pyta_io::tntp::{read_flows, read_net, read_trips};
+use pytraf_io::tntp::{read_flows, read_net, read_trips};
 
 const SHUFFLE_SEEDS: u64 = 5;
 const MAX_SWEEPS: usize = 3000;

@@ -1,12 +1,12 @@
-"""PyTA: path-based static traffic assignment.
+"""PyTraf: path-based static traffic assignment.
 
 The Rust extension takes numpy arrays. The helpers here accept pandas DataFrames
 (or any mapping of column name to array-like) so flat tables can be passed straight in.
 
-    import pyta
+    import pytraf
 
-    net = pyta.Network.from_tables(links_df, turns_df)
-    demand = pyta.Demand.from_table(net, trips_df)
+    net = pytraf.Network.from_tables(links_df, turns_df)
+    demand = pytraf.Demand.from_table(net, trips_df)
     result = net.assign(demand, gap=1e-6)
     result.links.table()      # or the numpy arrays: result.links.flow, ...
 """
@@ -19,8 +19,8 @@ from typing import Any, Optional, Sequence, Union
 import numpy as np
 from numpy.typing import NDArray
 
-from . import _pyta
-from ._pyta import (
+from . import _pytraf
+from ._pytraf import (
     __version__,
     Demand,
     Network,
@@ -120,7 +120,7 @@ def assign(
     """Finds the user equilibrium by path-based gradient projection.
 
     This is also a method of the network: ``network.assign(classes, ...)`` is
-    ``pyta.assign(network, classes, ...)``. Everything after ``classes`` is keyword-only.
+    ``pytraf.assign(network, classes, ...)``. Everything after ``classes`` is keyword-only.
 
     Args:
         network: The network.
@@ -150,7 +150,7 @@ def assign(
         ValueError: For malformed input, an unknown `order` or `unreachable`, or demand
             that cannot be routed while `unreachable` is `Unreachable.ERROR`.
     """
-    raw = _pyta.assign(
+    raw = _pytraf.assign(
         network,
         classes,
         gap=gap,

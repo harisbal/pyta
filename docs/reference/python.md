@@ -2,40 +2,40 @@
 
 ## Classes
 
-::: pyta.Network
+::: pytraf.Network
 
-::: pyta.Demand
+::: pytraf.Demand
 
-::: pyta.TrafficClass
+::: pytraf.TrafficClass
 
 ## Results
 
 `assign` returns an `AssignResult`, which groups what it holds into the objects below.
 
-::: pyta.AssignResult
+::: pytraf.AssignResult
 
-::: pyta.results.LinkResults
+::: pytraf.results.LinkResults
     options:
       inherited_members: true
 
-::: pyta.results.TurnResults
+::: pytraf.results.TurnResults
     options:
       inherited_members: true
 
-::: pyta.results.ClassFlows
+::: pytraf.results.ClassFlows
 
-::: pyta.results.PathResults
+::: pytraf.results.PathResults
 
-::: pyta.results.UnroutedDemand
+::: pytraf.results.UnroutedDemand
 
-::: pyta.results.Diagnostics
+::: pytraf.results.Diagnostics
 
 ## Options
 
-::: pyta.Order
+::: pytraf.Order
 
-::: pyta.Unreachable
+::: pytraf.Unreachable
 
 ## Functions
 
-::: pyta.assign
+::: pytraf.assign

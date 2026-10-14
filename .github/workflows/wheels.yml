@@ -41,8 +41,8 @@ jobs:
           python -m venv test-env
           if [ -d test-env/Scripts ]; then PY="$PWD/test-env/Scripts/python"; else PY="$PWD/test-env/bin/python"; fi
           "$PY" -m pip install pytest pandas
-          "$PY" -m pip install --no-index --find-links dist pyta
-          # run from another directory so the installed wheel is imported, not python/pyta
+          "$PY" -m pip install --no-index --find-links dist pytraf
+          # run from another directory so the installed wheel is imported, not python/pytraf
           cd "$RUNNER_TEMP"
           "$PY" -m pytest -q "$GITHUB_WORKSPACE/python/tests"
       - uses: actions/upload-artifact@v4

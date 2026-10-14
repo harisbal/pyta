@@ -9,7 +9,7 @@
   `relative_gap` stay on the result.
 - `assign` takes everything after `classes` as keyword-only, and `order` and `unreachable` are string enums
   (`Order`, `Unreachable`) that reject unknown values with a message listing the valid ones.
-- `assign` is also a method: `network.assign(classes, ...)`. `pyta.assign(network, classes, ...)` stays and is
+- `assign` is also a method: `network.assign(classes, ...)`. `pytraf.assign(network, classes, ...)` stays and is
   the same function.
 - `is_endpoint` is `is_centroid`, `zone_nodes_are_endpoints` is `zone_nodes_are_centroids` and
   `Demand.skipped_flow` is `Demand.unknown_zone_flow`.

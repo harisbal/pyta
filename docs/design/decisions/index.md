@@ -1,6 +1,6 @@
 # Decision records
 
-Short notes on the choices that shaped PyTA, with the reason for each.
+Short notes on the choices that shaped PyTraf, with the reason for each.
 
 | # | decision |
 |---|---|

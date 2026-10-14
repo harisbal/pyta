@@ -3,7 +3,7 @@
 ```mermaid
 flowchart LR
     subgraph Python
-        P[pyta package<br/>DataFrame helpers, stubs]
+        P[pytraf package<br/>DataFrame helpers, stubs]
     end
     subgraph Rust workspace
         PY[crates/python<br/>PyO3 bindings]
@@ -17,9 +17,9 @@ flowchart LR
 ```
 
 The core takes typed arrays and does no file IO, so Rust and Python users call the same code. File
-formats live in `pyta-io`; the bindings convert numpy arrays into core types and back.
+formats live in `pytraf-io`; the bindings convert numpy arrays into core types and back.
 
-## Modules of `pyta-core`
+## Modules of `pytraf-core`
 
 | module | responsibility |
 |---|---|

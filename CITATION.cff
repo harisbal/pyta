@@ -1,6 +1,6 @@
 cff-version: 1.2.0
-message: "If you use PyTA in your research, please cite it as below."
-title: "PyTA: Path-based static traffic assignment"
+message: "If you use PyTraf in your research, please cite it as below."
+title: "PyTraf: Path-based static traffic assignment"
 type: software
 authors:
   - family-names: Ballis
@@ -8,8 +8,8 @@ authors:
 version: 0.2.0
 date-released: 2026-10-14
 license: MIT
-repository-code: "https://github.com/harisbal/pyta"
-url: "https://harisbal.github.io/pyta/"
+repository-code: "https://github.com/harisbal/pytraf"
+url: "https://harisbal.github.io/pytraf/"
 keywords:
   - traffic assignment
   - user equilibrium

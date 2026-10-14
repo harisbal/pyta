@@ -136,7 +136,7 @@ class Network:
     ) -> AssignResult:
         """Finds the user equilibrium on this network by path-based gradient projection.
 
-        The same as ``pyta.assign(self, classes, ...)``, where all the options are
+        The same as ``pytraf.assign(self, classes, ...)``, where all the options are
         described. Everything after ``classes`` is keyword-only."""
 
 class Demand:
@@ -212,7 +212,7 @@ class TrafficClass:
     ) -> None: ...
 
 class _RawResult:
-    """The solver's result as numpy arrays; wrapped by :class:`pyta.AssignResult`."""
+    """The solver's result as numpy arrays; wrapped by :class:`pytraf.AssignResult`."""
 
     network: Network
     class_names: List[str]

@@ -1,4 +1,4 @@
-//! PyTA core: static traffic assignment.
+//! PyTraf core: static traffic assignment.
 //!
 //! The crate does no file IO; it works on typed arrays so Rust and Python users call the
 //! same code. A typical session builds a [`Network`] from [`Edge`]s, a [`TurnTable`], a

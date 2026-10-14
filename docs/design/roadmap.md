@@ -23,7 +23,7 @@
 | Link-direction optimiser | built on the assignment engine; see below |
 | Bush-based solver | a fallback for the largest networks, with origin-level memory |
 | Interacting junction models | signalised and priority junctions |
-| Stochastic user equilibrium | deferred: PyTA keeps the deterministic equilibrium for now. When added, path-based logit SUE (Fisk, 1980) fits the existing solver best: the gradient-projection step equalises \(c_p + \ln f_p / \theta\) instead of \(c_p\), with a path-size correction for overlapping routes. Open questions are the choice set (today only paths that were once shortest) and the convergence measure |
+| Stochastic user equilibrium | deferred: PyTraf keeps the deterministic equilibrium for now. When added, path-based logit SUE (Fisk, 1980) fits the existing solver best: the gradient-projection step equalises \(c_p + \ln f_p / \theta\) instead of \(c_p\), with a path-size correction for overlapping routes. Open questions are the choice set (today only paths that were once shortest) and the convergence measure |
 
 ## Link-direction optimisation
 

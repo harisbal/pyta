@@ -95,12 +95,12 @@ under 90 seconds.
 
 ## Against AequilibraE
 
-AequilibraE 1.7.0 (biconjugate Frank-Wolfe, its best method) was run on the same machine as PyTA, with
+AequilibraE 1.7.0 (biconjugate Frank-Wolfe, its best method) was run on the same machine as PyTraf, with
 8 cores each and one after the other. Its own benchmark loaders were used (`tests/aeq/benchmarks/conftest.py`
 in its repository), so the graph is built as it builds it. Times are solve times only. The machine is an
 i7-7700HQ with 8 threads. Both report a relative gap. Entries are medians; the range is in brackets.
 
-| network | gap | AequilibraE | PyTA | speed-up |
+| network | gap | AequilibraE | PyTraf | speed-up |
 |---|---|---|---|---|
 | Sioux Falls | 1e-4 | 1.3 s (118 iterations) | 0.01 s (14 sweeps) | ~130x |
 | Sioux Falls | 1e-6 | 12.5 s (976) | 0.03 s (56) | ~400x |
@@ -112,8 +112,8 @@ i7-7700HQ with 8 threads. Both report a relative gap. Entries are medians; the r
 | Chicago Regional | 1e-4 | 211 s (192) [207-303] | 125 s (31) [124-126] | 1.7x |
 | Chicago Regional | 1e-5 | 753 s (697) [749-945] | 287 s (83) [287-289] | 2.6x |
 
-The two smallest networks were run once for AequilibraE (5 times for PyTA, with identical timings); the
-others 4 to 5 times for AequilibraE (3 for Regional at 1e-5) and 3 to 5 times for PyTA.
+The two smallest networks were run once for AequilibraE (5 times for PyTraf, with identical timings); the
+others 4 to 5 times for AequilibraE (3 for Regional at 1e-5) and 3 to 5 times for PyTraf.
 
 How to read this:
 
@@ -121,13 +121,13 @@ How to read this:
   over 700 for 1e-5 on Chicago Regional), so the setup is faithful.
 - The first AequilibraE run on Chicago Regional was much slower than all later ones (303 s to 1e-4,
   945 s to 1e-5, against about 210 s and 750 s). The tables above keep it in the range but the median ignores it.
-  An earlier version of this page used that run alone and overstated the advantage of PyTA on Regional.
-- A PyTA sweep costs more than an AequilibraE iteration on Chicago Regional (about 4 s against about 1.1 s),
-  but PyTA needs 6 to 8 times fewer of them at 1e-4 and 1e-5 (3.7 times fewer at 1e-3). The advantage
+  An earlier version of this page used that run alone and overstated the advantage of PyTraf on Regional.
+- A PyTraf sweep costs more than an AequilibraE iteration on Chicago Regional (about 4 s against about 1.1 s),
+  but PyTraf needs 6 to 8 times fewer of them at 1e-4 and 1e-5 (3.7 times fewer at 1e-3). The advantage
   therefore grows as the gap tightens, and at 1e-3 AequilibraE is faster.
 - On the small networks the AequilibraE time is mostly per-iteration Python overhead (about 13 ms per iteration
   on Sioux Falls), so those ratios say little about the algorithms.
-- PyTA keeps paths and needs about 1.3 GB on Chicago Regional. AequilibraE's memory was not measured, but a
+- PyTraf keeps paths and needs about 1.3 GB on Chicago Regional. AequilibraE's memory was not measured, but a
   link-based method should need far less.
 - AequilibraE's documentation quotes 0.44 s per iteration on a Ryzen 9 under Windows. This machine gave
   about 1.1 s per iteration, so absolute times from its page are not comparable with these.
@@ -154,10 +154,10 @@ default stays `fixed` until more networks are tested.
 
 ```sh
 python data/tntp/fetch.py ChicagoRegional Philadelphia                    # large networks
-cargo run --release -p pyta-io --example scale_benchmark -- ChicagoRegional 1e-4 80
-cargo run --release -p pyta-io --example order_benchmark -- SiouxFalls
-cargo run --release -p pyta-io --example order_benchmark -- Anaheim 1e-4 1e-6
-cargo run --release -p pyta-io --example order_benchmark -- ChicagoSketch
+cargo run --release -p pytraf-io --example scale_benchmark -- ChicagoRegional 1e-4 80
+cargo run --release -p pytraf-io --example order_benchmark -- SiouxFalls
+cargo run --release -p pytraf-io --example order_benchmark -- Anaheim 1e-4 1e-6
+cargo run --release -p pytraf-io --example order_benchmark -- ChicagoSketch
 ```
 
 `order_benchmark` takes the folder name under `data/tntp` and a list of gap tolerances; it compares every

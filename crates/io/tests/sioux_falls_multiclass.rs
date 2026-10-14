@@ -2,11 +2,11 @@
 
 use std::collections::HashMap;
 
-use pyta_core::{
+use pytraf_core::{
     Bpr, ClassSpec, GradientProjectionOptions, MultiClassResult, NoDelay, OdDemand, OriginOrder,
     TurnOptions, TurnTable, gradient_projection_multiclass,
 };
-use pyta_io::tntp::{TntpNetwork, read_flows, read_net, read_trips};
+use pytraf_io::tntp::{TntpNetwork, read_flows, read_net, read_trips};
 
 fn data(file: &str) -> String {
     format!(
@@ -17,7 +17,7 @@ fn data(file: &str) -> String {
 
 struct Case {
     net: TntpNetwork,
-    trips: pyta_io::tntp::Demand,
+    trips: pytraf_io::tntp::Demand,
     turns: TurnTable,
     vdf: Bpr,
     published: Vec<f64>,

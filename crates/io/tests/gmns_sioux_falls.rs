@@ -4,11 +4,11 @@
 //! a length in km with a speed of 60 km/h (which makes km equal minutes), the BPR
 //! parameters go into `vdf_alpha` / `vdf_beta`, and zones are the nodes themselves.
 
-use pyta_core::{
+use pytraf_core::{
     Bpr, GradientProjectionOptions, OdDemand, TurnOptions, TurnTable, Vdf, gradient_projection,
 };
-use pyta_io::gmns::{DemandOptions, GmnsOptions, parse_demand, parse_network};
-use pyta_io::tntp::{read_flows, read_net, read_trips};
+use pytraf_io::gmns::{DemandOptions, GmnsOptions, parse_demand, parse_network};
+use pytraf_io::tntp::{read_flows, read_net, read_trips};
 
 fn data(file: &str) -> String {
     format!(

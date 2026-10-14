@@ -6,7 +6,7 @@ The Rust API is documented with rustdoc. Build and open it with:
 cargo doc --workspace --no-deps --open
 ```
 
-Start from these items in `pyta_core`:
+Start from these items in `pytraf_core`:
 
 | item | what it is |
 |---|---|
@@ -20,4 +20,4 @@ Start from these items in `pyta_core`:
 | `dijkstra`, `dijkstra_turns` | shortest paths |
 | `OriginOrder`, `GradientProjectionOptions` | solver settings |
 
-and `pyta_io::tntp` for reading TNTP files. See the [Rust guide](../guide/rust.md) for a worked example.
+and `pytraf_io::tntp` for reading TNTP files. See the [Rust guide](../guide/rust.md) for a worked example.

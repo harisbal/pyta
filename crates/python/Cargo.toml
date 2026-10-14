@@ -1,17 +1,17 @@
 [package]
-name = "pyta-py"
+name = "pytraf-py"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
 [lib]
-name = "_pyta"
+name = "_pytraf"
 crate-type = ["cdylib"]
 
 [dependencies]
 rayon = "1"
 numpy = "0.29.0"
 pyo3 = { version = "0.29.3", features = ["abi3-py39"] }
-pyta-core = { path = "../core" }
-pyta-io = { path = "../io" }
+pytraf-core = { path = "../core" }
+pytraf-io = { path = "../io" }

@@ -3,7 +3,7 @@ requires = ["maturin>=1.7,<2.0"]
 build-backend = "maturin"
 
 [project]
-name = "pyta"
+name = "pytraf"
 dynamic = ["version"]  # taken from the Cargo workspace
 description = "Path-based traffic assignment with turn delays and multiple vehicle classes."
 license = { text = "MIT" }
@@ -11,8 +11,8 @@ requires-python = ">=3.9"
 dependencies = ["numpy>=1.23"]
 
 [project.urls]
-Documentation = "https://harisbal.github.io/pyta/"
-Repository = "https://github.com/harisbal/pyta"
+Documentation = "https://harisbal.github.io/pytraf/"
+Repository = "https://github.com/harisbal/pytraf"
 
 [project.optional-dependencies]
 pandas = ["pandas>=1.5"]
@@ -22,7 +22,7 @@ docs = ["mkdocs>=1.6,<2", "mkdocs-material>=9.7,<10", "mkdocstrings[python]>=0.2
 [tool.maturin]
 manifest-path = "crates/python/Cargo.toml"
 python-source = "python"
-module-name = "pyta._pyta"
+module-name = "pytraf._pytraf"
 features = ["pyo3/extension-module"]
 
 [tool.pytest.ini_options]

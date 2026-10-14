@@ -6,12 +6,12 @@
 //! expanded graph is the same equilibrium problem, so its edge flows must equal the
 //! link and turn flows of the turn-aware solver on the original network.
 
-use pyta_core::{
+use pytraf_core::{
     Bpr, Edge, FrankWolfeOptions, GradientProjectionOptions, GradientProjectionResult, Network,
     OdDemand, OriginOrder, TurnException, TurnOptions, TurnRule, TurnTable, Vdf,
     frank_wolfe_with_turn_delays, gradient_projection, gradient_projection_with_turn_delays,
 };
-use pyta_io::tntp::{TntpNetwork, read_net, read_trips};
+use pytraf_io::tntp::{TntpNetwork, read_net, read_trips};
 
 struct Case {
     net: TntpNetwork,

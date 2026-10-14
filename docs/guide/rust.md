@@ -4,14 +4,14 @@ The Rust crates are the same code the Python package runs.
 
 | crate | contents |
 |---|---|
-| `pyta-core` | network, turns, shortest paths, solvers, path store. No file IO. |
-| `pyta-io` | TNTP and GMNS readers |
+| `pytraf-core` | network, turns, shortest paths, solvers, path store. No file IO. |
+| `pytraf-io` | TNTP and GMNS readers |
 
 ## A full example
 
 ```rust
-use pyta_core::*;
-use pyta_io::tntp::{read_net, read_trips};
+use pytraf_core::*;
+use pytraf_io::tntp::{read_net, read_trips};
 
 let net = read_net("data/tntp/SiouxFalls/SiouxFalls_net.tntp")?;
 let trips = read_trips("data/tntp/SiouxFalls/SiouxFalls_trips.tntp")?;
@@ -30,7 +30,7 @@ println!("{} sweeps, gap {:.2e}, objective {:.2}",
 ## Reading a GMNS dataset
 
 ```rust
-use pyta_io::gmns::{DemandOptions, GmnsOptions, read_demand, read_network};
+use pytraf_io::gmns::{DemandOptions, GmnsOptions, read_demand, read_network};
 
 let gmns = read_network("path/to/gmns", &GmnsOptions::default())?;
 let trips = read_demand("path/to/demand.csv", &gmns, &DemandOptions::default())?.demand;
@@ -43,7 +43,7 @@ let vdf = Bpr::new(gmns.free_flow_time, gmns.capacity, gmns.b, gmns.power)?;
 ```
 
 Set `GmnsOptions::length_unit` and `speed_unit` when the dataset has no `config.csv`.
-`cargo run --release -p pyta-io --example gmns_assign` runs a dataset end to end.
+`cargo run --release -p pytraf-io --example gmns_assign` runs a dataset end to end.
 
 ## The pieces
 

@@ -1,10 +1,10 @@
 //! Chunked sweeps (shortest-path searches of several origins in parallel).
 
-use pyta_core::{
+use pytraf_core::{
     Bpr, GradientProjectionOptions, GradientProjectionResult, OdDemand, OriginOrder, TurnOptions,
     TurnTable, gradient_projection,
 };
-use pyta_io::tntp::{TntpNetwork, read_flows, read_net, read_trips};
+use pytraf_io::tntp::{TntpNetwork, read_flows, read_net, read_trips};
 
 fn data(file: &str) -> String {
     format!(

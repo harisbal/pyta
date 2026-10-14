@@ -1,7 +1,7 @@
 //! Checks the link-labelled Dijkstra on Sioux Falls.
 
-use pyta_core::{TurnOptions, TurnTable, dijkstra, dijkstra_turns};
-use pyta_io::tntp::{TntpNetwork, read_net};
+use pytraf_core::{TurnOptions, TurnTable, dijkstra, dijkstra_turns};
+use pytraf_io::tntp::{TntpNetwork, read_net};
 
 fn load() -> TntpNetwork {
     read_net(format!(

@@ -2,12 +2,12 @@
 
 ## Install
 
-PyTA is not on PyPI yet. Download the wheel for your system from the
-[latest release](https://github.com/harisbal/pyta/releases/latest) (Linux, macOS and Windows; Python 3.9
+PyTraf is not on PyPI yet. Download the wheel for your system from the
+[latest release](https://github.com/harisbal/pytraf/releases/latest) (Linux, macOS and Windows; Python 3.9
 or newer) and install it:
 
 ```sh
-pip install pyta-{{ version }}-<platform>.whl      # the file you downloaded
+pip install pytraf-{{ version }}-<platform>.whl      # the file you downloaded
 pip install pandas                                 # optional: for the DataFrame inputs and tables
 ```
 
@@ -16,17 +16,17 @@ pip install pandas                                 # optional: for the DataFrame
 You need [Rust](https://rustup.rs), Python 3.9 or newer, and [maturin](https://www.maturin.rs):
 
 ```sh
-git clone https://github.com/harisbal/pyta pyta && cd pyta
+git clone https://github.com/harisbal/pytraf pytraf && cd pytraf
 uv venv .venv && source .venv/bin/activate        # or: python -m venv .venv
 uv pip install numpy pandas maturin
-maturin develop --release                          # compile and install `pyta`
+maturin develop --release                          # compile and install `pytraf`
 ```
 
 To install into another environment without Rust there, build a wheel once and install it there:
 
 ```sh
-maturin build --release --out dist                 # writes dist/pyta-{{ version }}-cp39-abi3-*.whl
-pip install dist/pyta-{{ version }}-cp39-abi3-*.whl
+maturin build --release --out dist                 # writes dist/pytraf-{{ version }}-cp39-abi3-*.whl
+pip install dist/pytraf-{{ version }}-cp39-abi3-*.whl
 ```
 
 The wheel targets the stable Python ABI (`abi3`), so a single wheel works on Python 3.9 and newer. It is
@@ -51,7 +51,7 @@ the link table is a link, numbered in order.
 
 ```python
 import pandas as pd
-import pyta
+import pytraf
 
 links = pd.DataFrame({
     "from_node":      [0, 1, 0, 2, 2],
@@ -61,8 +61,8 @@ links = pd.DataFrame({
 })
 trips = pd.DataFrame({"origin": [0], "destination": [3], "flow": [3000.0]})
 
-net = pyta.Network.from_tables(links)
-demand = pyta.Demand.from_table(net, trips)
+net = pytraf.Network.from_tables(links)
+demand = pytraf.Demand.from_table(net, trips)
 
 result = net.assign(demand)
 print(result)
@@ -90,7 +90,7 @@ link
 `flow` counts vehicles, `volume` counts them in car units (the same here, with only cars), `voc` is
 volume over capacity and `time` is the travel time in minutes.
 
-PyTA keeps the routes themselves, so you can also see who goes where:
+PyTraf keeps the routes themselves, so you can also see who goes where:
 
 ```python
 result.paths.table().round(2)
@@ -119,8 +119,8 @@ Real networks come from files or larger tables, and the call stays the same. The
 the Sioux Falls benchmark:
 
 ```python
-net = pyta.Network.from_tntp("data/tntp/SiouxFalls/SiouxFalls_net.tntp")
-demand = pyta.Demand.from_tntp(net, "data/tntp/SiouxFalls/SiouxFalls_trips.tntp")
+net = pytraf.Network.from_tntp("data/tntp/SiouxFalls/SiouxFalls_net.tntp")
+demand = pytraf.Demand.from_tntp(net, "data/tntp/SiouxFalls/SiouxFalls_trips.tntp")
 result = net.assign(demand)
 ```
 

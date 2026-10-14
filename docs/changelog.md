@@ -1,6 +1,6 @@
 # Changelog
 
-PyTA is still in development, so names can change between versions.
+PyTraf is still in development, so names can change between versions.
 
 ## 0.2.0
 

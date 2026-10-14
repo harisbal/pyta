@@ -1,4 +1,4 @@
-"""Named choices for the string options of :func:`pyta.assign`.
+"""Named choices for the string options of :func:`pytraf.assign`.
 
 Each is a string enum, so ``Order.SHUFFLE == "shuffle"`` and the plain string is accepted
 wherever the enum is. A misspelt value raises a ``ValueError`` that lists the valid ones.
@@ -51,7 +51,7 @@ class Order(_Checked):
 
 
 class Unreachable(_Checked):
-    """What :func:`pyta.assign` does with demand that no allowed path can serve."""
+    """What :func:`pytraf.assign` does with demand that no allowed path can serve."""
 
     ERROR = "error"
     """Raise a ``ValueError`` that names the origin-destination pairs."""

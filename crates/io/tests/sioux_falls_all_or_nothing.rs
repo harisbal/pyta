@@ -4,8 +4,8 @@
 //! flows depend on tie-breaking. These tests check properties that do not:
 //! flow conservation and total cost.
 
-use pyta_core::{OdDemand, TurnOptions, TurnTable, all_or_nothing, dijkstra_turns};
-use pyta_io::tntp::{TntpNetwork, read_net, read_trips};
+use pytraf_core::{OdDemand, TurnOptions, TurnTable, all_or_nothing, dijkstra_turns};
+use pytraf_io::tntp::{TntpNetwork, read_net, read_trips};
 
 fn data(file: &str) -> String {
     format!(

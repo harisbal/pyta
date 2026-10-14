@@ -1,10 +1,10 @@
 //! Anaheim (with real centroids) and Chicago Sketch: loading, and gradient projection on Anaheim.
 
-use pyta_core::{
+use pytraf_core::{
     Bpr, GradientProjectionOptions, OdDemand, OriginOrder, TurnOptions, TurnTable, Vdf,
     gradient_projection,
 };
-use pyta_io::tntp::{TntpNetwork, read_flows, read_net, read_trips};
+use pytraf_io::tntp::{TntpNetwork, read_flows, read_net, read_trips};
 
 fn dir(name: &str) -> String {
     format!("{}/../../data/tntp/{name}", env!("CARGO_MANIFEST_DIR"))

@@ -240,29 +240,29 @@ dependencies = [
 ]
 
 [[package]]
-name = "pyta-core"
+name = "pytraf-core"
 version = "0.2.0"
 dependencies = [
  "rayon",
 ]
 
 [[package]]
-name = "pyta-io"
+name = "pytraf-io"
 version = "0.2.0"
 dependencies = [
  "csv",
- "pyta-core",
+ "pytraf-core",
  "rayon",
 ]
 
 [[package]]
-name = "pyta-py"
+name = "pytraf-py"
 version = "0.2.0"
 dependencies = [
  "numpy",
  "pyo3",
- "pyta-core",
- "pyta-io",
+ "pytraf-core",
+ "pytraf-io",
  "rayon",
 ]
 
