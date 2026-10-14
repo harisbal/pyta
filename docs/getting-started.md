@@ -2,11 +2,21 @@
 
 ## Install
 
-You need [Rust](https://rustup.rs), Python 3.9 or newer, and [maturin](https://www.maturin.rs).
-PyTA is not on PyPI yet, so you build it from the repository:
+PyTA is not on PyPI yet. Download the wheel for your system from the
+[latest release](https://github.com/harisbal/pyta/releases/latest) (Linux, macOS and Windows; Python 3.9
+or newer) and install it:
 
 ```sh
-git clone <repository> pyta && cd pyta
+pip install pyta-{{ version }}-<platform>.whl      # the file you downloaded
+pip install pandas                                 # optional: for the DataFrame inputs and tables
+```
+
+### Build from source
+
+You need [Rust](https://rustup.rs), Python 3.9 or newer, and [maturin](https://www.maturin.rs):
+
+```sh
+git clone https://github.com/harisbal/pyta pyta && cd pyta
 uv venv .venv && source .venv/bin/activate        # or: python -m venv .venv
 uv pip install numpy pandas maturin
 maturin develop --release                          # compile and install `pyta`
