@@ -144,12 +144,10 @@ read-only; copy one to change it.
 `print(result.summary())` gives a short account: convergence, trips per class, demand left out and the busiest link.
 
 !!! note "Renamed in 0.2.0"
-    Before 0.2.0 the result had a flat set of names: `link_flow`, `turn_flow`, `class_link_flow`,
-    `link_volume`, `link_time`, `link_preload`, `link_table()`, `path_table()`, `paths()`, `unrouted_flow`,
-    `unrouted()`, `unrouted_table()`, `sweep_gaps`, `times` and `objective`. They still work and raise a
-    `DeprecationWarning` naming the replacement; they will be removed in 0.3.0. Likewise `is_endpoint` is
-    now `is_centroid`, `zone_nodes_are_endpoints` is `zone_nodes_are_centroids`, and `Demand.skipped_flow` is
-    `Demand.unknown_zone_flow`.
+    Before 0.2.0 the result had a flat set of names (`link_flow`, `class_link_flow`, `link_table()`,
+    `path_table()`, `unrouted_flow`, ...), and `is_endpoint` and `Demand.skipped_flow` had other names. They
+    still work and raise a `DeprecationWarning` naming the replacement; they will be removed in 0.3.0. The
+    [changelog](../changelog.md) lists every old name with its replacement.
 
 ## Input reference
 

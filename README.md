@@ -176,7 +176,7 @@ publish a GitHub release.
 If you use PyTA in your research, please cite it as below (GitHub's "Cite this repository" button gives
 the same from [`CITATION.cff`](CITATION.cff)):
 
-> Ballis, H. (2026). *PyTA: Path-based static traffic assignment* (Version 0.1.1)
+> Ballis, H. (2026). *PyTA: Path-based static traffic assignment* (Version 0.2.0)
 > [Computer software]. https://github.com/harisbal/pyta
 
 ```bibtex
@@ -184,7 +184,7 @@ the same from [`CITATION.cff`](CITATION.cff)):
   author  = {Ballis, Haris},
   title   = {{PyTA}: Path-based static traffic assignment},
   year    = {2026},
-  version = {0.1.1},
+  version = {0.2.0},
   url     = {https://github.com/harisbal/pyta}
 }
 ```

@@ -47,6 +47,7 @@ nav:
   - Concepts:
       - How it works: concepts/how-it-works.md
   - Benchmarks: benchmarks.md
+  - Changelog: changelog.md
   - Design:
       - Architecture: design/architecture.md
       - Decision records:

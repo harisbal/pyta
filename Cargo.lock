@@ -241,14 +241,14 @@ dependencies = [
 
 [[package]]
 name = "pyta-core"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "rayon",
 ]
 
 [[package]]
 name = "pyta-io"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "csv",
  "pyta-core",
@@ -257,7 +257,7 @@ dependencies = [
 
 [[package]]
 name = "pyta-py"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "numpy",
  "pyo3",
