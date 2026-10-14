@@ -1,8 +1,8 @@
 name: wheels
 
 # Builds wheels for Linux, macOS and Windows plus the source distribution.
-# Publishing a GitHub release attaches them to it; "Run workflow" only builds them
-# (download from the run's artifacts).
+# Publishing a GitHub release attaches them to it and uploads them to PyPI; "Run workflow"
+# only builds them (download from the run's artifacts).
 on:
   release:
     types: [published]
@@ -79,3 +79,21 @@ jobs:
       - env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "${{ github.event.release.tag_name }}" dist/* --clobber --repo "${{ github.repository }}"
+
+  pypi:
+    name: publish to PyPI
+    if: github.event_name == 'release'
+    needs: [wheels, sdist]
+    runs-on: ubuntu-latest
+    # Trusted publishing: PyPI trusts this workflow and environment, so no token is stored.
+    environment:
+      name: pypi
+      url: https://pypi.org/p/pytraf
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: pypa/gh-action-pypi-publish@release/v1
