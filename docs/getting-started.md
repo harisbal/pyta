@@ -59,8 +59,8 @@ result.link_flow.round()
 ```
 
 The centre is the shortest route, but its second link has little capacity, so traffic spreads until
-all three routes take the same time. That balance is the **user equilibrium**: nobody can arrive
-sooner by switching route.
+all three routes take the same time. This is the **user equilibrium** of Wardrop's first principle:
+every route in use has the same travel time, and no driver can arrive sooner by switching to another.
 
 PyTA keeps the routes themselves, so you can see who goes where:
 
