@@ -75,6 +75,38 @@ about 32 s per sweep at the start, down to about 12 s with the sequential code i
 2–3× from parallel shortest paths. Reaching gap 1e-3 took an estimated eight minutes originally and now takes
 under 90 seconds.
 
+## Against AequilibraE
+
+AequilibraE 1.7.0 (biconjugate Frank-Wolfe, its best method) was run on the same machine as PyTA, with
+8 cores each and one after the other. Its own benchmark loaders were used (`tests/aeq/benchmarks/conftest.py`
+in its repository), so the graph is built as it builds it. Times are solve times only. The machine is an
+i7-7700HQ with 8 threads. Both report a relative gap.
+
+| network | gap | AequilibraE | PyTA | speed-up |
+|---|---|---|---|---|
+| Sioux Falls | 1e-4 | 1.3 s (118 iterations) | 0.01 s (14 sweeps) | ~130x |
+| Sioux Falls | 1e-6 | 12.5 s (976) | 0.03 s (56) | ~400x |
+| Anaheim | 1e-4 | 0.3 s (14) | 0.03 s (4) | ~10x |
+| Anaheim | 1e-6 | 1.4 s (81) | 0.05 s (9) | ~28x |
+| Chicago Sketch | 1e-4 | 11.1 s (48) | 1.13 s (11) | ~10x |
+| Chicago Sketch | 1e-6 | 116.5 s (518) | 1.83 s (22) | ~64x |
+| Chicago Regional | 1e-3 | 96.7 s (56) | 75.1 s (15) | 1.3x |
+| Chicago Regional | 1e-4 | 303 s (192) | 114 s (30) | 2.7x |
+| Chicago Regional | 1e-5 | 945 s (697) | 252 s (78) | 3.8x |
+
+How to read this:
+
+- The AequilibraE runs reproduce the claims on its own validation page (under 200 iterations for 1e-4 and just
+  over 700 for 1e-5 on Chicago Regional), so the setup is faithful.
+- A PyTA sweep costs more than an AequilibraE iteration on Chicago Regional (3 to 5 s against 1.4 s), but PyTA
+  needs 6 to 9 times fewer of them. The advantage therefore grows as the gap tightens and nearly disappears at 1e-3.
+- On the small networks the AequilibraE time is mostly per-iteration Python overhead (about 13 ms per iteration
+  on Sioux Falls), so those ratios say little about the algorithms.
+- PyTA keeps paths and needs about 3 GB on Chicago Regional. AequilibraE's memory was not measured, but a
+  link-based method should need far less.
+- AequilibraE's documentation quotes 0.44 s per iteration on a Ryzen 9 under Windows. This machine gave
+  1.36 s per iteration, so absolute times from its page are not comparable with these.
+
 ## Origin order
 
 Sweeps to reach a gap of 1e-6 (Shuffle: minimum / median / maximum over five seeds):
@@ -107,3 +139,7 @@ cargo run --release -p pyta-io --example order_benchmark -- ChicagoSketch
 origin order and, if the network has a published flow file, checks the result against it.
 `scale_benchmark` takes the folder name, a gap, a sweep limit and a chunk size, and reports the phase
 timings, the number of paths and peak memory.
+
+To repeat the AequilibraE side, install `aequilibrae` in a separate environment, copy the TNTP files out of
+`data/tntp` (its loader writes an `.omx` cache next to the data) and run its `tests/aeq/benchmarks/conftest.py`
+loaders with `TrafficAssignment` set to `bfw`, `max_iter` 1000 and the gap target as the stopping rule.
