@@ -12,6 +12,16 @@ uv pip install numpy pandas maturin
 maturin develop --release                          # compile and install `pyta`
 ```
 
+To install into another environment without Rust there, build a wheel once and install it there:
+
+```sh
+maturin build --release --out dist                 # writes dist/pyta-{{ version }}-cp39-abi3-*.whl
+pip install dist/pyta-{{ version }}-cp39-abi3-*.whl
+```
+
+The wheel targets the stable Python ABI (`abi3`), so a single wheel works on Python 3.9 and newer. It is
+specific to the operating system and CPU it was built on.
+
 ## A small example
 
 3 000 drivers travel from **Home** to **Work** in one hour. They can take the ring road, cut through the
