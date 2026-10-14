@@ -145,6 +145,70 @@ impl Bpr {
     }
 }
 
+/// A delay function whose elements already carry some fixed volume that is not part of the
+/// assignment: `c_i(flow) = inner.c_i(flow + preload_i)`. Used for trips that were on the
+/// network before the period began.
+///
+/// The objective counts only the part above the preload: `Σ ∫_{preload}^{preload+flow} c_i`.
+#[derive(Debug, Clone, Copy)]
+pub struct Preloaded<'a, V> {
+    inner: &'a V,
+    preload: &'a [f64],
+}
+
+impl<'a, V: Vdf> Preloaded<'a, V> {
+    /// `preload` has one non-negative entry per element of `inner`.
+    pub fn new(inner: &'a V, preload: &'a [f64]) -> Preloaded<'a, V> {
+        assert_eq!(inner.len(), preload.len(), "one preload per element");
+        debug_assert!(preload.iter().all(|&p| p.is_finite() && p >= 0.0));
+        Preloaded { inner, preload }
+    }
+}
+
+impl<V: Vdf> Vdf for Preloaded<'_, V> {
+    fn len(&self) -> usize {
+        self.inner.len()
+    }
+
+    fn cost_at(&self, i: usize, flow: f64) -> f64 {
+        self.inner.cost_at(i, flow + self.preload[i])
+    }
+
+    fn derivative_at(&self, i: usize, flow: f64) -> f64 {
+        self.inner.derivative_at(i, flow + self.preload[i])
+    }
+
+    fn cost_and_derivative_at(&self, i: usize, flow: f64) -> (f64, f64) {
+        self.inner.cost_and_derivative_at(i, flow + self.preload[i])
+    }
+
+    fn integral(&self, flows: &[f64]) -> f64 {
+        let total: Vec<f64> = flows.iter().zip(self.preload).map(|(f, p)| f + p).collect();
+        self.inner.integral(&total) - self.inner.integral(self.preload)
+    }
+}
+
+impl Bpr {
+    /// The same function with every capacity multiplied by `factor` (> 0). Used to turn
+    /// capacities per hour into capacities per period of `factor` hours.
+    pub fn with_capacity_scaled(&self, factor: f64) -> Bpr {
+        assert!(
+            factor.is_finite() && factor > 0.0,
+            "factor must be positive"
+        );
+        Bpr {
+            params: self
+                .params
+                .iter()
+                .map(|q| BprParams {
+                    inv_capacity: q.inv_capacity / factor,
+                    ..*q
+                })
+                .collect(),
+        }
+    }
+}
+
 /// `x^p`, using repeated multiplication for small whole powers (BPR almost always
 /// has power 4, and `powf` is several times slower).
 fn pow(x: f64, p: f64) -> f64 {
@@ -340,5 +404,47 @@ mod tests {
         }
         // The default implementation (used by NoDelay) is just the two separate calls.
         assert_eq!(NoDelay::new(3).cost_and_derivative_at(1, 5.0), (0.0, 0.0));
+    }
+
+    #[test]
+    fn preload_shifts_the_flow_the_function_sees() {
+        let bpr = Bpr::new(
+            vec![6.0, 3.0],
+            vec![100.0, 20.0],
+            vec![0.15, 0.8],
+            vec![4.0, 2.0],
+        )
+        .unwrap();
+        let preload = [40.0, 0.0];
+        let f = Preloaded::new(&bpr, &preload);
+        assert_eq!(f.len(), 2);
+        assert_eq!(f.cost_at(0, 10.0), bpr.cost_at(0, 50.0));
+        assert_eq!(f.derivative_at(0, 10.0), bpr.derivative_at(0, 50.0));
+        assert_eq!(
+            f.cost_and_derivative_at(0, 10.0),
+            bpr.cost_and_derivative_at(0, 50.0)
+        );
+        // No preload: identical to the inner function.
+        assert_eq!(f.cost_at(1, 7.0), bpr.cost_at(1, 7.0));
+    }
+
+    #[test]
+    fn preloaded_integral_is_the_area_above_the_preload() {
+        let bpr = Bpr::new(vec![6.0], vec![100.0], vec![0.15], vec![4.0]).unwrap();
+        let preload = [40.0];
+        let f = Preloaded::new(&bpr, &preload);
+        // Numerical integral of cost from preload to preload + flow.
+        let flow = 30.0;
+        let steps = 20_000;
+        let h = flow / steps as f64;
+        let area: f64 = (0..steps)
+            .map(|k| bpr.cost_at(0, 40.0 + (k as f64 + 0.5) * h) * h)
+            .sum();
+        assert!(
+            (f.integral(&[flow]) - area).abs() < 1e-6,
+            "{} vs {area}",
+            f.integral(&[flow])
+        );
+        assert!(f.integral(&[0.0]).abs() < 1e-12);
     }
 }

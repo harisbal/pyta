@@ -180,6 +180,14 @@ class AssignResult:
     def converged(self) -> bool:
         """Whether the gap target was reached."""
     @property
+    def link_preload(self) -> Optional[NDArray[np.float64]]:
+        """Vehicles per link already on the network when the period began (trips carried
+        over, PCE-weighted); None unless from :func:`assign_periods`. Travel times
+        depend on ``link_volume + link_preload``."""
+    @property
+    def turn_preload(self) -> Optional[NDArray[np.float64]]:
+        """The same per turn."""
+    @property
     def sweep_gaps(self) -> NDArray[np.float64]:
         """Cheap gap estimate measured during each sweep."""
     @property
@@ -232,4 +240,49 @@ def assign(
 
     Raises:
         ValueError: For malformed input or demand that cannot be routed.
+    """
+
+class Period:
+    """One time period for :func:`assign_periods`.
+
+    Args:
+        duration: Length in minutes, the unit of travel times. Capacities are per
+            hour and are multiplied by ``duration / 60`` for this period.
+        classes: A :class:`Demand`, a :class:`TrafficClass` or a list of them: the
+            period's own trips. Periods may have different classes.
+    """
+
+    def __init__(
+        self,
+        duration: float,
+        classes: Union[Demand, TrafficClass, Sequence[Union[Demand, TrafficClass]]],
+    ) -> None: ...
+    @property
+    def duration(self) -> float:
+        """Length in minutes."""
+
+def assign_periods(
+    network: Network,
+    periods: Sequence[Period],
+    gap: float = 1e-6,
+    max_iter: int = 200,
+    order: str = "fixed",
+    seed: int = 0,
+    chunk_size: int = 0,
+    threads: Optional[int] = None,
+) -> List[AssignResult]:
+    """Assigns the periods in order; unfinished trips load the next period.
+
+    Trips depart uniformly during a period. Those still travelling at its end are spread
+    along their routes in proportion to travel time and are not assigned again: in the
+    next period the links they still have to travel start with that many extra vehicles
+    (``link_preload`` and ``turn_preload`` of the result, times the class's PCE), which
+    slows them. A path of travel time ``tau`` in a period of length ``T`` leaves
+    ``min(tau, T) / T`` of its flow on the network. See decision 0010.
+
+    The other arguments are those of :func:`assign`; each period runs to ``gap``.
+
+    Raises:
+        ValueError: For a malformed period (non-positive duration, no classes) or demand
+            that cannot be routed.
     """

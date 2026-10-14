@@ -366,3 +366,43 @@ def test_gmns_needs_units_and_a_gmns_network(tmp_path):
     with pytest.raises(ValueError, match="from_gmns"):
         pyta.Demand.from_gmns(str(tmp_path / "d.csv"), sioux)
     assert sioux.node_ids is None
+
+
+# --------------------------------------------------------------- periods
+
+
+def line_network():
+    """a -> b -> c, 10 and 20 minutes, never congested."""
+    return pyta.network_from_tables({
+        "from_node": [0, 1], "to_node": [1, 2],
+        "free_flow_time": [10.0, 20.0], "capacity": [1e6, 1e6], "b": [0.0, 0.0],
+    })
+
+
+def test_unfinished_trips_preload_the_links_still_ahead_of_them():
+    net = line_network()
+    busy = pyta.demand_from_table({"origin": [0], "destination": [2], "flow": [60.0]}, 3)
+    quiet = pyta.demand_from_table({"origin": [], "destination": [], "flow": []}, 3)
+    first, second, third = pyta.assign_periods(
+        net, [pyta.Period(60, busy), pyta.Period(60, quiet), pyta.Period(60, quiet)])
+    # Path time 30 of 60 minutes; a third of the trips still travelling are on the
+    # 10-minute link and still have to enter the second link.
+    np.testing.assert_allclose(first.link_preload, [0.0, 0.0])
+    np.testing.assert_allclose(second.link_preload, [0.0, 10.0])
+    np.testing.assert_allclose(second.turn_preload, [10.0])
+    np.testing.assert_allclose(third.link_preload, [0.0, 0.0])
+    # The assignment itself does not include the preload, and there is no objective.
+    np.testing.assert_allclose(first.link_volume, [60.0, 60.0])
+    np.testing.assert_allclose(second.link_volume, [0.0, 0.0])
+    assert first.objective is None
+
+
+def test_periods_are_validated_and_sioux_falls_period_matches_assign(sioux):
+    net, demand = sioux
+    with pytest.raises(ValueError, match="duration"):
+        pyta.assign_periods(net, [pyta.Period(0, demand)])
+    single = pyta.assign(net, demand, gap=1e-6)
+    assert single.link_preload is None
+    (period,) = pyta.assign_periods(net, [pyta.Period(60, demand)], gap=1e-6)
+    np.testing.assert_allclose(period.link_volume, single.link_volume)
+    np.testing.assert_allclose(period.link_preload, 0.0)

@@ -18,7 +18,7 @@
 | Path memory | the per-OD bookkeeping (a vector of paths per OD pair) now makes up a large share of what is left; Sydney (3 264 zones) and Austin (7 388 zones) are untested and may need bush-based storage |
 | Faster flow updates | the remaining bottleneck on large networks (about 40% of the time on Chicago Regional) |
 | OpenStreetMap networks | download and conversion belong in the Python layer (osm2gmns or osmnx), producing GMNS or flat tables |
-| Multiple time periods | with carry-over of trips that do not finish; needs paths to resume mid-route and demand that starts at intermediate nodes |
+| Better carry-over | carry the preload on again when it outlasts a period, load it at the start of the period only, vary capacity within a period |
 | Link-direction optimiser | built on the assignment engine; see below |
 | Bush-based solver | a fallback for the largest networks, with origin-level memory |
 | Interacting junction models | signalised and priority junctions |

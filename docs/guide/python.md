@@ -119,6 +119,16 @@ pyta.TrafficClass(demand, pce=1.0, extra_link_cost=None, allowed_links=None)
   value of time before passing them in.
 - `allowed_links`: bool per link. A turn is usable only if both its links are.
 
+## Several periods
+
+```python
+first, second = pyta.assign_periods(net, [pyta.Period(180, am_classes), pyta.Period(180, pm_classes)])
+second.link_volume      # the second period's own trips
+second.link_preload     # trips left over from the first, already on their remaining links
+```
+
+Durations are minutes and capacities per hour; see [time periods](../concepts/periods.md).
+
 ## Results
 
 | attribute | meaning |

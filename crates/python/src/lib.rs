@@ -559,6 +559,8 @@ struct AssignResult {
     sweep_gaps: Vec<f64>,
     objective: Option<f64>,
     times: core::PhaseTimes,
+    /// Link and turn preload of a period (`assign_periods` only).
+    preload: Option<(Vec<f64>, Vec<f64>)>,
 }
 
 impl AssignResult {
@@ -648,6 +650,24 @@ impl AssignResult {
         out.set_item("sweep_rebuild", self.times.sweep_rebuild)?;
         out.set_item("gap_checks", self.times.gap_checks)?;
         Ok(out)
+    }
+
+    /// PCE-weighted vehicles per link that were already on the network when the period
+    /// began (trips carried over); None unless the result comes from `assign_periods`.
+    /// Travel times depend on `link_volume + link_preload`.
+    #[getter]
+    fn link_preload<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyArray1<f64>>> {
+        self.preload
+            .as_ref()
+            .map(|(links, _)| links.clone().into_pyarray(py))
+    }
+
+    /// The same per turn.
+    #[getter]
+    fn turn_preload<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyArray1<f64>>> {
+        self.preload
+            .as_ref()
+            .map(|(_, turns)| turns.clone().into_pyarray(py))
     }
 
     /// Beckmann objective; only defined for a single class with PCE 1, otherwise `None`.
@@ -771,24 +791,8 @@ fn assign(
             allowed_links: class.allowed_links.as_deref(),
         })
         .collect();
-    let options = core::GradientProjectionOptions {
-        max_iterations: max_iter,
-        gap_tolerance: gap,
-        origin_order: parse_order(order, seed)?,
-        chunk_size,
-    };
-
-    let pool = threads
-        .map(|n| {
-            if n == 0 {
-                return Err(msg("threads must be at least 1"));
-            }
-            rayon::ThreadPoolBuilder::new()
-                .num_threads(n)
-                .build()
-                .map_err(err)
-        })
-        .transpose()?;
+    let options = build_options(gap, max_iter, order, seed, chunk_size)?;
+    let pool = build_pool(threads)?;
 
     let net: &Network = &network;
     let solve = || {
@@ -818,7 +822,40 @@ fn assign(
             + net.turn_vdf.integral(&solved.turn_volume)
             + penalties
     });
-    Ok(AssignResult {
+    Ok(make_result(solved, objective))
+}
+
+fn build_options(
+    gap: f64,
+    max_iter: usize,
+    order: &str,
+    seed: u64,
+    chunk_size: usize,
+) -> PyResult<core::GradientProjectionOptions> {
+    Ok(core::GradientProjectionOptions {
+        max_iterations: max_iter,
+        gap_tolerance: gap,
+        origin_order: parse_order(order, seed)?,
+        chunk_size,
+    })
+}
+
+fn build_pool(threads: Option<usize>) -> PyResult<Option<rayon::ThreadPool>> {
+    threads
+        .map(|n| {
+            if n == 0 {
+                return Err(msg("threads must be at least 1"));
+            }
+            rayon::ThreadPoolBuilder::new()
+                .num_threads(n)
+                .build()
+                .map_err(err)
+        })
+        .transpose()
+}
+
+fn make_result(solved: core::MultiClassResult, objective: Option<f64>) -> AssignResult {
+    AssignResult {
         classes: solved.classes,
         link_volume: solved.link_volume,
         turn_volume: solved.turn_volume,
@@ -828,7 +865,116 @@ fn assign(
         sweep_gaps: solved.sweep_gaps,
         objective,
         times: solved.times,
-    })
+        preload: None,
+    }
+}
+
+// ---------------------------------------------------------------- Periods
+
+/// One time period: its length in minutes and its classes (with the period's own trips).
+#[pyclass(module = "pyta._pyta", frozen)]
+struct Period {
+    duration: f64,
+    classes: Vec<Py<TrafficClass>>,
+}
+
+#[pymethods]
+impl Period {
+    #[new]
+    fn new(duration: f64, classes: &Bound<'_, PyAny>) -> PyResult<Period> {
+        let items: Vec<Bound<'_, PyAny>> = match classes.cast::<PyList>() {
+            Ok(list) => list.iter().collect(),
+            Err(_) => vec![classes.clone()],
+        };
+        Ok(Period {
+            duration,
+            classes: items.iter().map(extract_class).collect::<PyResult<_>>()?,
+        })
+    }
+
+    #[getter]
+    fn duration(&self) -> f64 {
+        self.duration
+    }
+}
+
+/// Assigns the periods one after the other; trips unfinished at the end of a period load
+/// the links they still have to travel in the next one.
+#[pyfunction]
+#[allow(clippy::too_many_arguments)]
+#[pyo3(signature = (network, periods, gap=1e-6, max_iter=200, order="fixed", seed=0, chunk_size=0, threads=None))]
+fn assign_periods(
+    py: Python<'_>,
+    network: PyRef<'_, Network>,
+    periods: Vec<PyRef<'_, Period>>,
+    gap: f64,
+    max_iter: usize,
+    order: &str,
+    seed: u64,
+    chunk_size: usize,
+    threads: Option<usize>,
+) -> PyResult<Vec<AssignResult>> {
+    let class_refs: Vec<Vec<PyRef<'_, TrafficClass>>> = periods
+        .iter()
+        .map(|p| p.classes.iter().map(|c| c.bind(py).borrow()).collect())
+        .collect();
+    let demand_refs: Vec<Vec<PyRef<'_, Demand>>> = class_refs
+        .iter()
+        .map(|cs| cs.iter().map(|c| c.demand.bind(py).borrow()).collect())
+        .collect();
+    let specs: Vec<Vec<core::ClassSpec<'_>>> = class_refs
+        .iter()
+        .zip(&demand_refs)
+        .map(|(cs, ds)| {
+            cs.iter()
+                .zip(ds)
+                .map(|(class, demand)| core::ClassSpec {
+                    demand: &demand.od,
+                    pce: class.pce,
+                    extra_link_cost: class.extra_link_cost.as_deref(),
+                    allowed_links: class.allowed_links.as_deref(),
+                })
+                .collect()
+        })
+        .collect();
+    let core_periods: Vec<core::Period<'_>> = periods
+        .iter()
+        .zip(&specs)
+        .map(|(p, classes)| core::Period {
+            duration: p.duration,
+            classes,
+        })
+        .collect();
+    let options = build_options(gap, max_iter, order, seed, chunk_size)?;
+    let pool = build_pool(threads)?;
+
+    let net: &Network = &network;
+    let solve = || {
+        core::assign_periods(
+            &net.network,
+            &net.turns,
+            &net.link_vdf,
+            &net.turn_vdf,
+            &core_periods,
+            options,
+        )
+    };
+    let solved = py
+        .detach(|| match &pool {
+            Some(pool) => pool.install(solve),
+            None => solve(),
+        })
+        .map_err(err)?;
+
+    Ok(solved
+        .into_iter()
+        .map(|r| {
+            // The per-period capacities are scaled, so no objective is reported.
+            let mut result = make_result(r.assignment, None);
+            result.preload = Some((r.link_preload, r.turn_preload));
+            result
+        })
+        .collect())
 }
 
 #[pymodule]
@@ -837,6 +983,8 @@ fn _pyta(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Demand>()?;
     m.add_class::<TrafficClass>()?;
     m.add_class::<AssignResult>()?;
+    m.add_class::<Period>()?;
     m.add_function(wrap_pyfunction!(assign, m)?)?;
+    m.add_function(wrap_pyfunction!(assign_periods, m)?)?;
     Ok(())
 }

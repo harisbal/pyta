@@ -17,14 +17,24 @@ from typing import Any, Mapping, Optional
 
 import numpy as np
 
-from ._pyta import AssignResult, Demand, Network, TrafficClass, assign
+from ._pyta import (
+    AssignResult,
+    Demand,
+    Network,
+    Period,
+    TrafficClass,
+    assign,
+    assign_periods,
+)
 
 __all__ = [
     "AssignResult",
     "Demand",
     "Network",
+    "Period",
     "TrafficClass",
     "assign",
+    "assign_periods",
     "demand_from_table",
     "network_from_tables",
 ]

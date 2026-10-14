@@ -69,5 +69,5 @@ On Sioux Falls the objective matches the published value (4 231 335.29), in abou
 - **Select-link and path analysis** from the stored paths.
 
 !!! note "Scope"
-    PyTA solves the *static* problem: one period, no queues spilling back. Multiple time periods,
-    signal models and link-direction optimisation are on the [roadmap](design/roadmap.md).
+    PyTA solves the *static* problem: each period is an equilibrium, with no queues spilling back, and
+    unfinished trips carry over between periods ([time periods](concepts/periods.md)). Signal models and link-direction optimisation are on the [roadmap](design/roadmap.md).

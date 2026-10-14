@@ -151,5 +151,5 @@ cargo run --release -p pyta-io --example order_benchmark -- Anaheim 1e-4 1e-6
 - **Path memory** grows with zones squared times paths per OD (1.3 GB for 2.3 million OD pairs, with
   paths stored as a tree per origin). Sydney and Austin are untested; bush-based methods are the planned
   answer if they do not fit.
-- **Not yet implemented:** multiple time periods and carry-over, OSM download,
+- **Not yet implemented:** OSM download,
   link-direction optimisation.

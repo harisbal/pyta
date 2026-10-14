@@ -43,6 +43,7 @@ nav:
       - Network model: concepts/network-model.md
       - Turns: concepts/turns.md
       - Traffic classes: concepts/classes.md
+      - Time periods: concepts/periods.md
   - Benchmarks: benchmarks.md
   - Design:
       - Architecture: design/architecture.md
@@ -57,6 +58,7 @@ nav:
           - "0007 Parallel sweeps": design/decisions/0007-parallel-sweeps.md
           - "0008 Path tree": design/decisions/0008-path-tree.md
           - "0009 GMNS input": design/decisions/0009-gmns-input.md
+          - "0010 Time periods": design/decisions/0010-time-periods.md
       - Roadmap and limitations: design/roadmap.md
   - Reference:
       - Python API: reference/python.md

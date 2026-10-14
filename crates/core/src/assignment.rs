@@ -38,6 +38,11 @@ pub enum SolverError {
         class: usize,
         reason: &'static str,
     },
+    /// A period is malformed (`period` is its index).
+    InvalidPeriod {
+        period: usize,
+        reason: &'static str,
+    },
     /// A class has demand between two nodes its allowed links cannot connect.
     ClassUnreachable {
         class: usize,
