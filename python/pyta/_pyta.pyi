@@ -25,7 +25,7 @@ class Network:
         turns: Optional turn table as a dict of arrays, with the columns ``from_link``
             and ``to_link`` and optionally ``banned``, ``penalty`` (NaN = none),
             ``delay_free_flow``, ``delay_capacity``, ``delay_b`` and ``delay_power``.
-            Use :func:`pyta.network_from_tables` to pass DataFrames instead.
+            Use :meth:`Network.from_tables` to pass DataFrames instead.
         allow_u_turns: Allow immediate returns to the node a link came from.
     """
 
@@ -42,6 +42,31 @@ class Network:
         turns: Optional[Dict[str, NDArray[Any]]] = None,
         allow_u_turns: bool = False,
     ) -> None: ...
+    @staticmethod
+    def from_tables(
+        links: Any,
+        turns: Optional[Any] = None,
+        *,
+        num_nodes: Optional[int] = None,
+        is_endpoint: Optional[Any] = None,
+        allow_u_turns: bool = False,
+    ) -> "Network":
+        """Builds a network from flat tables (pandas DataFrames or dicts of arrays).
+
+        ``links`` needs the columns ``from_node``, ``to_node``, ``free_flow_time`` and
+        ``capacity``; ``b`` (default 0.15) and ``power`` (default 4) are optional.
+        Node ids are integers starting at 0 (``num_nodes`` defaults to the largest id + 1).
+        Links get their ids from their row order, 0, 1, 2, ...
+
+        ``turns`` is optional and lists exceptions and delays by link ids. Columns:
+        ``from_link`` and ``to_link`` (required), ``banned`` (bool), ``penalty`` (fixed
+        delay, NaN = none) and ``delay_free_flow``, ``delay_capacity``, ``delay_b``,
+        ``delay_power`` (a BPR delay on the turn's own flow; give all four or none).
+        Turns not listed are allowed at zero cost, except U-turns unless ``allow_u_turns``.
+        Use :meth:`turn_links` to see which turns exist.
+
+        ``is_endpoint`` marks nodes (e.g. zone centroids) that paths may start or end at
+        but not pass through."""
     @staticmethod
     def from_tntp(path: str) -> "Network":
         """Reads a TNTP ``*_net.tntp`` file. Node numbers become 0-based, links keep
@@ -105,12 +130,17 @@ class Demand:
         flows: NDArray[np.float64],
     ) -> None: ...
     @staticmethod
-    def from_tntp(path: str, network: Network) -> "Demand":
+    def from_table(network: Network, table: Any) -> "Demand":
+        """Builds the demand for ``network`` from a long-format table (a pandas
+        DataFrame or a dict of arrays) with columns ``origin``, ``destination`` and
+        ``flow``. Origins and destinations are node ids."""
+    @staticmethod
+    def from_tntp(network: Network, path: str) -> "Demand":
         """Reads a TNTP ``*_trips.tntp`` file for ``network``."""
     @staticmethod
     def from_gmns(
-        path: str,
         network: Network,
+        path: str,
         origin: str = "o_zone_id",
         destination: str = "d_zone_id",
         flow: str = "volume",

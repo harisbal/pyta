@@ -26,7 +26,7 @@ Its main features are:
 import pyta
 
 net = pyta.Network.from_tntp("SiouxFalls_net.tntp")
-demand = pyta.Demand.from_tntp("SiouxFalls_trips.tntp", net)
+demand = pyta.Demand.from_tntp(net, "SiouxFalls_trips.tntp")
 
 result = pyta.assign(net, demand)
 result.link_flow               # vehicles per link

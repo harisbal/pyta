@@ -40,7 +40,7 @@ pytest                                             # optional: run the Python te
 import pyta
 
 net = pyta.Network.from_tntp("data/tntp/SiouxFalls/SiouxFalls_net.tntp")
-demand = pyta.Demand.from_tntp("data/tntp/SiouxFalls/SiouxFalls_trips.tntp", net)
+demand = pyta.Demand.from_tntp(net, "data/tntp/SiouxFalls/SiouxFalls_trips.tntp")
 
 result = pyta.assign(net, demand, gap=1e-6)
 result.converged, result.iterations, result.relative_gap
@@ -52,8 +52,8 @@ result.paths()            # every path as flat arrays: select-link analysis, pat
 From your own tables (DataFrames or dicts of arrays):
 
 ```python
-net = pyta.network_from_tables(links_df, turns_df)           # see docs/guide/python.md for columns
-demand = pyta.demand_from_table(trips_df, num_nodes=net.num_nodes)
+net = pyta.Network.from_tables(links_df, turns_df)           # see docs/guide/python.md for columns
+demand = pyta.Demand.from_table(net, trips_df)
 result = pyta.assign(net, demand, gap=1e-6)
 ```
 

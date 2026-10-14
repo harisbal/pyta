@@ -436,7 +436,7 @@ impl Demand {
 
     /// Reads a TNTP `*_trips.tntp` file for `network`.
     #[staticmethod]
-    fn from_tntp(path: &str, network: &Network) -> PyResult<Demand> {
+    fn from_tntp(network: &Network, path: &str) -> PyResult<Demand> {
         let trips = pyta_io::tntp::read_trips(path).map_err(|e| msg(e.to_string()))?;
         let num_nodes = network.network.num_nodes();
         let od = core::OdDemand::from_triples(
@@ -456,10 +456,10 @@ impl Demand {
     /// Reads a GMNS-style demand file (one row per zone pair) for a network read with
     /// `Network.from_gmns`. Zone trips are split equally over the zone's nodes.
     #[staticmethod]
-    #[pyo3(signature = (path, network, origin="o_zone_id", destination="d_zone_id", flow="volume", skip_unknown_zones=false))]
+    #[pyo3(signature = (network, path, origin="o_zone_id", destination="d_zone_id", flow="volume", skip_unknown_zones=false))]
     fn from_gmns(
-        path: &str,
         network: &Network,
+        path: &str,
         origin: &str,
         destination: &str,
         flow: &str,

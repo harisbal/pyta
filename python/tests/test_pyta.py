@@ -34,7 +34,7 @@ def read_trip_table():
 @pytest.fixture(scope="module")
 def sioux():
     net = pyta.Network.from_tntp(str(DATA / "SiouxFalls_net.tntp"))
-    demand = pyta.Demand.from_tntp(str(DATA / "SiouxFalls_trips.tntp"), net)
+    demand = pyta.Demand.from_tntp(net, str(DATA / "SiouxFalls_trips.tntp"))
     return net, demand
 
 
@@ -74,11 +74,11 @@ def test_tables_and_dataframes_build_the_same_model(sioux):
     })
     assert (links["from_node"].to_numpy() == from_node).all()
     assert (links["to_node"].to_numpy() == to_node).all()
-    rebuilt = pyta.network_from_tables(links)
+    rebuilt = pyta.Network.from_tables(links)
     assert (rebuilt.num_nodes, rebuilt.num_links, rebuilt.num_turns) == (24, 76, 178)
 
     o, d, q = read_trip_table()
-    demand = pyta.demand_from_table(pd.DataFrame({"origin": o, "destination": d, "flow": q}), 24)
+    demand = pyta.Demand.from_table(rebuilt, pd.DataFrame({"origin": o, "destination": d, "flow": q}))
     assert demand.total() == 360_600.0
     a = pyta.assign(rebuilt, demand, gap=1e-9)
     b = pyta.assign(net, demand, gap=1e-9)
@@ -182,19 +182,19 @@ def two_parallel_links():
     """c1 = 10 + v1 and c2 = 20 + v2: capacity equals free-flow time and b = 1, power = 1."""
     links = {"from_node": [0, 0], "to_node": [1, 1], "free_flow_time": [10.0, 20.0],
              "capacity": [10.0, 20.0], "b": [1.0, 1.0], "power": [1.0, 1.0]}
-    return pyta.network_from_tables(links)
+    return pyta.Network.from_tables(links)
 
 
 def test_toll_and_ban_have_closed_form_equilibria():
     net = two_parallel_links()
-    ten = pyta.demand_from_table({"origin": [0], "destination": [1], "flow": [10.0]}, 2)
+    ten = pyta.Demand.from_table(net, {"origin": [0], "destination": [1], "flow": [10.0]})
     toll = pyta.TrafficClass(ten, extra_link_cost=np.array([5.0, 0.0]))
     result = pyta.assign(net, [ten, toll], gap=1e-10)
     a, b = result.class_link_flow
     assert np.allclose(a, [10.0, 0.0], atol=1e-6)
     assert np.allclose(b, [2.5, 7.5], atol=1e-6)
 
-    twenty_five = pyta.demand_from_table({"origin": [0], "destination": [1], "flow": [25.0]}, 2)
+    twenty_five = pyta.Demand.from_table(net, {"origin": [0], "destination": [1], "flow": [25.0]})
     banned = pyta.TrafficClass(ten, allowed_links=np.array([False, True]))
     result = pyta.assign(net, [twenty_five, banned], gap=1e-10)
     a, b = result.class_link_flow
@@ -204,7 +204,7 @@ def test_toll_and_ban_have_closed_form_equilibria():
 
 def test_pce_loads_the_network_by_its_weight():
     net = two_parallel_links()
-    fifteen = pyta.demand_from_table({"origin": [0], "destination": [1], "flow": [15.0]}, 2)
+    fifteen = pyta.Demand.from_table(net, {"origin": [0], "destination": [1], "flow": [15.0]})
     result = pyta.assign(net, pyta.TrafficClass(fifteen, pce=2.0), gap=1e-10)
     assert np.allclose(result.link_volume, [20.0, 10.0], atol=1e-6)
     assert np.allclose(result.link_flow, [10.0, 5.0], atol=1e-6)
@@ -217,8 +217,8 @@ def two_turn_routes(turn_rows):
     """Routes 0-1-3 (links 0, 1) and 0-2-3 (links 2, 3); every link costs 3."""
     links = {"from_node": [0, 1, 0, 2], "to_node": [1, 3, 2, 3], "free_flow_time": [3.0] * 4,
              "capacity": [1.0] * 4, "b": [0.0] * 4, "power": [1.0] * 4}
-    net = pyta.network_from_tables(links, turn_rows)
-    demand = pyta.demand_from_table({"origin": [0], "destination": [3], "flow": [30.0]}, 4)
+    net = pyta.Network.from_tables(links, turn_rows)
+    demand = pyta.Demand.from_table(net, {"origin": [0], "destination": [3], "flow": [30.0]})
     return net, demand
 
 
@@ -251,9 +251,9 @@ def test_endpoint_nodes_are_not_passed_through():
     # Node 1 sits on the cheap route; making it an endpoint forces the long way round.
     links = {"from_node": [0, 1, 0, 2], "to_node": [1, 3, 2, 3], "free_flow_time": [1.0, 1.0, 5.0, 5.0],
              "capacity": [100.0] * 4}
-    demand = pyta.demand_from_table({"origin": [0], "destination": [3], "flow": [10.0]}, 4)
-    open_net = pyta.network_from_tables(links)
-    closed = pyta.network_from_tables(links, is_endpoint=[False, True, False, False])
+    open_net = pyta.Network.from_tables(links)
+    demand = pyta.Demand.from_table(open_net, {"origin": [0], "destination": [3], "flow": [10.0]})
+    closed = pyta.Network.from_tables(links, is_endpoint=[False, True, False, False])
     assert pyta.assign(open_net, demand).link_flow[0] > 9.0
     assert pyta.assign(closed, demand).link_flow[0] == 0.0
     assert closed.is_endpoint.tolist() == [False, True, False, False]
@@ -271,9 +271,9 @@ def test_bad_input_raises_value_error(sioux):
     with pytest.raises(ValueError, match="must be a Demand"):
         pyta.assign(net, "demand")
     with pytest.raises(ValueError, match="missing column 'capacity'"):
-        pyta.network_from_tables({"from_node": [0], "to_node": [1], "free_flow_time": [1.0]})
+        pyta.Network.from_tables({"from_node": [0], "to_node": [1], "free_flow_time": [1.0]})
     with pytest.raises(ValueError):  # node id out of range
-        pyta.network_from_tables({"from_node": [0], "to_node": [5], "free_flow_time": [1.0],
+        pyta.Network.from_tables({"from_node": [0], "to_node": [5], "free_flow_time": [1.0],
                                   "capacity": [1.0]}, num_nodes=2)
     with pytest.raises(ValueError, match="not an allowed turn|NotAdjacent"):
         two_turn_routes({"from_link": [0], "to_link": [3], "penalty": [1.0]})
@@ -286,9 +286,9 @@ def test_bad_input_raises_value_error(sioux):
 
 
 def test_unreachable_demand_is_an_error():
-    net = pyta.network_from_tables({"from_node": [0], "to_node": [1], "free_flow_time": [1.0],
+    net = pyta.Network.from_tables({"from_node": [0], "to_node": [1], "free_flow_time": [1.0],
                                     "capacity": [10.0]}, num_nodes=3)
-    demand = pyta.demand_from_table({"origin": [0], "destination": [2], "flow": [1.0]}, 3)
+    demand = pyta.Demand.from_table(net, {"origin": [0], "destination": [2], "flow": [1.0]})
     with pytest.raises(ValueError, match="Unreachable"):
         pyta.assign(net, demand)
 
@@ -328,7 +328,7 @@ def test_gmns_sioux_falls_matches_published_equilibrium(tmp_path):
 
     gmns = pyta.Network.from_gmns(str(folder), length_unit="km", speed_unit="kph")
     assert gmns.num_links == net.num_links and gmns.node_ids[0] == "1"
-    demand = pyta.Demand.from_gmns(str(tmp_path / "demand.csv"), gmns)
+    demand = pyta.Demand.from_gmns(gmns, str(tmp_path / "demand.csv"))
     assert demand.total() == pytest.approx(360_600)
     result = pyta.assign(gmns, demand, gap=1e-6)
     assert result.converged
@@ -351,8 +351,8 @@ def test_gmns_zones_movements_and_unknown_zones(tmp_path):
 
     (tmp_path / "demand.csv").write_text("o_zone_id,d_zone_id,volume\n7,8,60\n9,8,5\n")
     with pytest.raises(ValueError, match="unknown zone '9'"):
-        pyta.Demand.from_gmns(str(tmp_path / "demand.csv"), net)
-    demand = pyta.Demand.from_gmns(str(tmp_path / "demand.csv"), net, skip_unknown_zones=True)
+        pyta.Demand.from_gmns(net, str(tmp_path / "demand.csv"))
+    demand = pyta.Demand.from_gmns(net, str(tmp_path / "demand.csv"), skip_unknown_zones=True)
     assert demand.total() == pytest.approx(60)
     assert demand.skipped_flow == 5
 
@@ -364,7 +364,7 @@ def test_gmns_needs_units_and_a_gmns_network(tmp_path):
     sioux = pyta.Network.from_tntp(str(DATA / "SiouxFalls_net.tntp"))
     (tmp_path / "d.csv").write_text("o_zone_id,d_zone_id,volume\n1,2,1\n")
     with pytest.raises(ValueError, match="from_gmns"):
-        pyta.Demand.from_gmns(str(tmp_path / "d.csv"), sioux)
+        pyta.Demand.from_gmns(sioux, str(tmp_path / "d.csv"))
     assert sioux.node_ids is None
 
 
@@ -373,7 +373,7 @@ def test_gmns_needs_units_and_a_gmns_network(tmp_path):
 
 def line_network():
     """a -> b -> c, 10 and 20 minutes, never congested."""
-    return pyta.network_from_tables({
+    return pyta.Network.from_tables({
         "from_node": [0, 1], "to_node": [1, 2],
         "free_flow_time": [10.0, 20.0], "capacity": [1e6, 1e6], "b": [0.0, 0.0],
     })
@@ -381,8 +381,8 @@ def line_network():
 
 def test_unfinished_trips_preload_the_links_still_ahead_of_them():
     net = line_network()
-    busy = pyta.demand_from_table({"origin": [0], "destination": [2], "flow": [60.0]}, 3)
-    quiet = pyta.demand_from_table({"origin": [], "destination": [], "flow": []}, 3)
+    busy = pyta.Demand.from_table(net, {"origin": [0], "destination": [2], "flow": [60.0]})
+    quiet = pyta.Demand.from_table(net, {"origin": [], "destination": [], "flow": []})
     first, second, third = pyta.assign_periods(
         net, [pyta.Period(60, busy), pyta.Period(60, quiet), pyta.Period(60, quiet)])
     # Path time 30 of 60 minutes; a third of the trips still travelling are on the

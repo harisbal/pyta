@@ -5,8 +5,8 @@ The Rust extension takes numpy arrays. The helpers here accept pandas DataFrames
 
     import pyta
 
-    net = pyta.network_from_tables(links_df, turns_df)
-    demand = pyta.demand_from_table(trips_df, num_nodes=net.num_nodes)
+    net = pyta.Network.from_tables(links_df, turns_df)
+    demand = pyta.Demand.from_table(net, trips_df)
     result = pyta.assign(net, demand, gap=1e-6)
     result.link_flow
 """
@@ -35,8 +35,6 @@ __all__ = [
     "TrafficClass",
     "assign",
     "assign_periods",
-    "demand_from_table",
-    "network_from_tables",
 ]
 
 
@@ -49,7 +47,7 @@ def _column(table: Any, name: str, dtype: Any, *, required: bool = True) -> Opti
     return np.ascontiguousarray(np.asarray(table[name]), dtype=dtype)
 
 
-def network_from_tables(
+def _network_from_tables(
     links: Any,
     turns: Optional[Any] = None,
     *,
@@ -57,23 +55,7 @@ def network_from_tables(
     is_endpoint: Optional[Any] = None,
     allow_u_turns: bool = False,
 ) -> Network:
-    """Builds a `Network` from flat tables.
-
-    `links` needs the columns ``from_node``, ``to_node``, ``free_flow_time`` and
-    ``capacity``; ``b`` (default 0.15) and ``power`` (default 4) are optional.
-    Node ids are integers starting at 0 (`num_nodes` defaults to the largest id + 1).
-    Links get their ids from their row order, 0, 1, 2, ...
-
-    `turns` is optional and lists exceptions and delays by link ids. Columns:
-    ``from_link`` and ``to_link`` (required), ``banned`` (bool), ``penalty`` (fixed
-    delay, NaN = none) and ``delay_free_flow``, ``delay_capacity``, ``delay_b``,
-    ``delay_power`` (a BPR delay on the turn's own flow; give all four or none).
-    Turns not listed are allowed at zero cost, except U-turns unless ``allow_u_turns``.
-    Use ``Network.turn_links()`` to see which turns exist.
-
-    `is_endpoint` marks nodes (e.g. zone centroids) that paths may start or end at but
-    not pass through.
-    """
+    """Implements `Network.from_tables`; documented in the type stubs."""
     from_node = _column(links, "from_node", np.int64)
     to_node = _column(links, "to_node", np.int64)
     if num_nodes is None:
@@ -103,12 +85,17 @@ def network_from_tables(
     )
 
 
-def demand_from_table(table: Any, num_nodes: int) -> Demand:
-    """Builds a `Demand` from a long-format table with columns ``origin``,
-    ``destination`` and ``flow`` (node ids start at 0)."""
+def _demand_from_table(network: Network, table: Any) -> Demand:
+    """Implements `Demand.from_table`; documented in the type stubs."""
     return Demand(
-        num_nodes,
+        network.num_nodes,
         _column(table, "origin", np.int64),
         _column(table, "destination", np.int64),
         _column(table, "flow", np.float64),
     )
+
+
+# The table helpers live here because they handle DataFrames; attach them to the
+# extension classes so they sit next to `from_tntp` and `from_gmns`.
+Network.from_tables = staticmethod(_network_from_tables)
+Demand.from_table = staticmethod(_demand_from_table)

@@ -41,8 +41,8 @@ links = pd.DataFrame({
 })
 trips = pd.DataFrame({"origin": [0], "destination": [3], "flow": [3000.0]})
 
-net = pyta.network_from_tables(links)
-demand = pyta.demand_from_table(trips, num_nodes=net.num_nodes)
+net = pyta.Network.from_tables(links)
+demand = pyta.Demand.from_table(net, trips)
 
 result = pyta.assign(net, demand)
 print(result)
@@ -83,7 +83,7 @@ the Sioux Falls benchmark:
 
 ```python
 net = pyta.Network.from_tntp("data/tntp/SiouxFalls/SiouxFalls_net.tntp")
-demand = pyta.Demand.from_tntp("data/tntp/SiouxFalls/SiouxFalls_trips.tntp", net)
+demand = pyta.Demand.from_tntp(net, "data/tntp/SiouxFalls/SiouxFalls_trips.tntp")
 result = pyta.assign(net, demand)
 ```
 

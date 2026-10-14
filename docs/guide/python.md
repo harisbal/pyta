@@ -23,7 +23,7 @@ Turn 2 is centre → shortcut. Ban it and the 508 shortcut drivers move to the o
 
 ```python
 turns = pd.DataFrame({"from_link": [2], "to_link": [4], "banned": [True]})
-banned = pyta.assign(pyta.network_from_tables(links, turns), demand)
+banned = pyta.assign(pyta.Network.from_tables(links, turns), demand)
 banned.link_flow.round()
 # array([1675., 1675., 1325., 1325.,    0.])
 ```
@@ -38,7 +38,7 @@ turn's own traffic:
 | `penalty` | fixed extra time; NaN for none |
 | `delay_free_flow`, `delay_capacity`, `delay_b`, `delay_power` | a BPR delay on the turn's own volume; all four or none |
 
-`network_from_tables(..., allow_u_turns=True)` allows U-turns; a penalty on one U-turn allows just that one.
+`Network.from_tables(..., allow_u_turns=True)` allows U-turns; a penalty on one U-turn allows just that one.
 
 ## Trucks and other classes
 
@@ -47,7 +47,7 @@ Add 200 trucks. Each takes the road space of 2.5 cars, and trucks may not drive 
 
 ```python
 truck_trips = pd.DataFrame({"origin": [0], "destination": [3], "flow": [200.0]})
-truck_demand = pyta.demand_from_table(truck_trips, num_nodes=net.num_nodes)
+truck_demand = pyta.Demand.from_table(net, truck_trips)
 
 cars   = pyta.TrafficClass(demand)
 trucks = pyta.TrafficClass(truck_demand, pce=2.5,
@@ -121,7 +121,7 @@ p["flow"][uses_shortcut].sum()       # 544.3
 | `capacity` | vehicles per hour, positive |
 | `b`, `power` | optional; the travel time is `free_flow_time * (1 + b * (volume / capacity) ** power)`, default `b=0.15`, `power=4` |
 
-`network_from_tables(links, turns=None, num_nodes=None, is_endpoint=None, allow_u_turns=False)` also
+`Network.from_tables(links, turns=None, num_nodes=None, is_endpoint=None, allow_u_turns=False)` also
 accepts a dict of numpy arrays instead of a DataFrame.
 
 ### Zones
@@ -134,7 +134,7 @@ Trips with `origin == destination` are skipped.
 
 ```python
 net = pyta.Network.from_tntp("SiouxFalls_net.tntp")
-demand = pyta.Demand.from_tntp("SiouxFalls_trips.tntp", net)
+demand = pyta.Demand.from_tntp(net, "SiouxFalls_trips.tntp")
 ```
 
 Nodes are renumbered from 0, and centroids are marked automatically.
@@ -143,7 +143,7 @@ Nodes are renumbered from 0, and centroids are marked automatically.
 
 ```python
 net = pyta.Network.from_gmns("path/to/gmns", length_unit="foot", speed_unit="mph")
-demand = pyta.Demand.from_gmns("path/to/demand.csv", net,
+demand = pyta.Demand.from_gmns(net, "path/to/demand.csv",
                                origin="orig_taz", destination="dest_taz", flow="total",
                                skip_unknown_zones=True)
 ```
