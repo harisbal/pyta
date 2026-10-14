@@ -2,7 +2,10 @@
 
 ## Limitations today
 
-- **Static, one period.** No queues spilling back, no time-varying demand.
+- **Static.** No queues spilling back. Periods can be chained, with unfinished trips carried over, but
+  demand is uniform within a period.
+- **Deterministic route choice.** Travellers are assumed to know travel times exactly (deterministic user
+  equilibrium). This is a deliberate choice: stochastic user equilibrium is deferred, see below.
 - **Separable delays.** A turn's delay depends on its own volume. Interacting junction models (signals,
   gap acceptance, roundabouts) make the cost Jacobian asymmetric and are not implemented.
 - **Multi-class has no objective** (asymmetric when PCEs differ) and is gradient projection only.
@@ -22,6 +25,7 @@
 | Link-direction optimiser | built on the assignment engine; see below |
 | Bush-based solver | a fallback for the largest networks, with origin-level memory |
 | Interacting junction models | signalised and priority junctions |
+| Stochastic user equilibrium | deferred: PyTA keeps the deterministic equilibrium for now. When added, path-based logit SUE (Fisk, 1980) fits the existing solver best: the gradient-projection step equalises \(c_p + \ln f_p / \theta\) instead of \(c_p\), with a path-size correction for overlapping routes. Open questions are the choice set (today only paths that were once shortest) and the convergence measure |
 
 ## Link-direction optimisation
 
