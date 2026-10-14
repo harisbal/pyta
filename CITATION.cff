@@ -5,7 +5,7 @@ type: software
 authors:
   - family-names: Ballis
     given-names: Haris
-version: 0.1.0
+version: 0.1.1
 date-released: 2026-10-14
 license: MIT
 repository-code: "https://github.com/harisbal/pyta"
