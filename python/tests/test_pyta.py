@@ -291,3 +291,78 @@ def test_unreachable_demand_is_an_error():
     demand = pyta.demand_from_table({"origin": [0], "destination": [2], "flow": [1.0]}, 3)
     with pytest.raises(ValueError, match="Unreachable"):
         pyta.assign(net, demand)
+
+
+# ------------------------------------------------------------------ GMNS
+
+
+def write_gmns(folder: Path, nodes: str, links: str, movements: str = "", config: str = "") -> Path:
+    folder.mkdir(exist_ok=True)
+    (folder / "node.csv").write_text(nodes)
+    (folder / "link.csv").write_text(links)
+    if movements:
+        (folder / "movement.csv").write_text(movements)
+    if config:
+        (folder / "config.csv").write_text(config)
+    return folder
+
+
+GMNS_LINK_HEAD = "link_id,from_node_id,to_node_id,directed,length,free_speed,capacity,lanes\n"
+
+
+def test_gmns_sioux_falls_matches_published_equilibrium(tmp_path):
+    """Sioux Falls written as GMNS (km at 60 km/h makes length equal minutes)."""
+    net = pyta.Network.from_tntp(str(DATA / "SiouxFalls_net.tntp"))
+    table = pd.read_csv(
+        DATA / "SiouxFalls_net.tntp", sep=r"\s+", skiprows=8, comment="~", header=None,
+        usecols=range(10), names=["f", "t", "cap", "len", "fft", "b", "power", "speed", "toll", "type"],
+    )
+    nodes = "node_id,zone_id\n" + "".join(f"{n},{n}\n" for n in range(1, 25))
+    links = "link_id,from_node_id,to_node_id,directed,length,free_speed,capacity,lanes,vdf_alpha,vdf_beta\n"
+    for i, r in table.iterrows():
+        links += f"{i},{int(r.f)},{int(r.t)},1,{r.fft},60,{r.cap},1,{r.b},{r.power}\n"
+    folder = write_gmns(tmp_path / "sf", nodes, links)
+    o, d, q = read_trip_table()
+    pd.DataFrame({"o_zone_id": o + 1, "d_zone_id": d + 1, "volume": q}).to_csv(
+        tmp_path / "demand.csv", index=False)
+
+    gmns = pyta.Network.from_gmns(str(folder), length_unit="km", speed_unit="kph")
+    assert gmns.num_links == net.num_links and gmns.node_ids[0] == "1"
+    demand = pyta.Demand.from_gmns(str(tmp_path / "demand.csv"), gmns)
+    assert demand.total() == pytest.approx(360_600)
+    result = pyta.assign(gmns, demand, gap=1e-6)
+    assert result.converged
+    assert result.objective == pytest.approx(PUBLISHED_OBJECTIVE, rel=1e-6)
+
+
+def test_gmns_zones_movements_and_unknown_zones(tmp_path):
+    # Zone 7 spans nodes a and c; zone 8 is node b. One undirected link a-b.
+    nodes = "node_id,zone_id\na,7\nb,8\nc,7\nd,\n"
+    links = GMNS_LINK_HEAD + "ab,a,b,false,6,60,900,2\nbc,b,c,true,6,60,900,2\ncd,c,d,true,1,60,900,1\nbd,b,d,true,1,60,900,1\n"
+    movements = "mvmt_id,node_id,ib_link_id,ob_link_id,penalty\n1,b,ab,bd,30\n"
+    folder = write_gmns(tmp_path / "g", nodes, links, movements, "long_length,speed\nkm,kph\n")
+    net = pyta.Network.from_gmns(str(folder))
+    assert net.num_links == 5  # the undirected link is two links
+    assert net.link_ids == ["ab", "ab", "bc", "cd", "bd"]
+    assert net.node_ids == ["a", "b", "c", "d"]
+    # Entering b on ab (link 0) only bd is listed, so bc is banned for that link.
+    from_link, to_link = (x.tolist() for x in net.turn_links())
+    assert [t for f, t in zip(from_link, to_link) if f == 0] == [4]
+
+    (tmp_path / "demand.csv").write_text("o_zone_id,d_zone_id,volume\n7,8,60\n9,8,5\n")
+    with pytest.raises(ValueError, match="unknown zone '9'"):
+        pyta.Demand.from_gmns(str(tmp_path / "demand.csv"), net)
+    demand = pyta.Demand.from_gmns(str(tmp_path / "demand.csv"), net, skip_unknown_zones=True)
+    assert demand.total() == pytest.approx(60)
+    assert demand.skipped_flow == 5
+
+
+def test_gmns_needs_units_and_a_gmns_network(tmp_path):
+    folder = write_gmns(tmp_path / "g", "node_id\na\nb\n", GMNS_LINK_HEAD + "ab,a,b,true,1,60,900,1\n")
+    with pytest.raises(ValueError, match="no length unit"):
+        pyta.Network.from_gmns(str(folder))
+    sioux = pyta.Network.from_tntp(str(DATA / "SiouxFalls_net.tntp"))
+    (tmp_path / "d.csv").write_text("o_zone_id,d_zone_id,volume\n1,2,1\n")
+    with pytest.raises(ValueError, match="from_gmns"):
+        pyta.Demand.from_gmns(str(tmp_path / "d.csv"), sioux)
+    assert sioux.node_ids is None

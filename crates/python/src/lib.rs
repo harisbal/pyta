@@ -1,6 +1,7 @@
 //! Python bindings for PyTA. The Rust types here are thin wrappers; the friendly
 //! Python API (DataFrame handling, docstrings) lives in `python/pyta/__init__.py`.
 
+use std::collections::HashMap;
 use std::fmt::Debug;
 
 use numpy::{IntoPyArray, PyArray1, PyReadonlyArray1};
@@ -36,6 +37,14 @@ struct Network {
     link_vdf: core::Bpr,
     turn_vdf: core::Bpr,
     is_endpoint: Vec<bool>,
+    /// Set by `from_gmns`: the file's ids, and the nodes of each zone.
+    gmns: Option<GmnsMeta>,
+}
+
+struct GmnsMeta {
+    node_ids: Vec<String>,
+    link_ids: Vec<String>,
+    zone_nodes: HashMap<String, Vec<u32>>,
 }
 
 /// Turn rows given by the user, one entry per row. NaN means "not set" for the floats.
@@ -203,6 +212,7 @@ fn build_network(
         link_vdf,
         turn_vdf,
         is_endpoint,
+        gmns: None,
     })
 }
 
@@ -258,6 +268,82 @@ impl Network {
             None,
             false,
         )
+    }
+
+    /// Reads a GMNS dataset directory (`node.csv`, `link.csv`, optional `movement.csv`
+    /// and `config.csv`). Times are in minutes. See ADR 0009 for the rules.
+    #[staticmethod]
+    #[pyo3(signature = (path, length_unit=None, speed_unit=None, zone_nodes_are_endpoints=false))]
+    fn from_gmns(
+        path: &str,
+        length_unit: Option<String>,
+        speed_unit: Option<String>,
+        zone_nodes_are_endpoints: bool,
+    ) -> PyResult<Network> {
+        let options = pyta_io::gmns::GmnsOptions {
+            length_unit,
+            speed_unit,
+            zone_nodes_are_endpoints,
+            ..Default::default()
+        };
+        let g = pyta_io::gmns::read_network(path, &options).map_err(|e| msg(e.to_string()))?;
+        let n = g.network.num_links();
+        let from: Vec<u32> = (0..n as u32).map(|l| g.network.from_node(l)).collect();
+        let to: Vec<u32> = (0..n as u32).map(|l| g.network.to_node(l)).collect();
+        // Bans and penalties from movement.csv, as the turn rows `build_network` takes.
+        let rows = g.turn_exceptions.iter().fold(
+            TurnRows {
+                from_link: Vec::new(),
+                to_link: Vec::new(),
+                penalty: Vec::new(),
+                banned: Vec::new(),
+                delay: [Vec::new(), Vec::new(), Vec::new(), Vec::new()],
+            },
+            |mut rows, e| {
+                rows.from_link.push(e.from_link);
+                rows.to_link.push(e.to_link);
+                let (banned, penalty) = match e.rule {
+                    core::TurnRule::Ban => (true, f64::NAN),
+                    core::TurnRule::Penalty(p) => (false, p),
+                };
+                rows.banned.push(banned);
+                rows.penalty.push(penalty);
+                for d in &mut rows.delay {
+                    d.push(f64::NAN);
+                }
+                rows
+            },
+        );
+        let mut net = build_network(
+            g.network.num_nodes(),
+            &from,
+            &to,
+            g.free_flow_time,
+            g.capacity,
+            Some(g.b),
+            Some(g.power),
+            Some(g.is_endpoint),
+            Some(rows),
+            false,
+        )?;
+        net.gmns = Some(GmnsMeta {
+            node_ids: g.node_ids,
+            link_ids: g.link_ids,
+            zone_nodes: g.zone_nodes,
+        });
+        Ok(net)
+    }
+
+    /// The `node_id` of every node in the GMNS files, or None for other networks.
+    #[getter]
+    fn node_ids(&self) -> Option<Vec<String>> {
+        self.gmns.as_ref().map(|g| g.node_ids.clone())
+    }
+
+    /// The `link_id` of every link (an undirected link appears twice), or None.
+    #[getter]
+    fn link_ids(&self) -> Option<Vec<String>> {
+        self.gmns.as_ref().map(|g| g.link_ids.clone())
     }
 
     #[getter]
@@ -321,6 +407,8 @@ impl Network {
 struct Demand {
     od: core::OdDemand,
     num_nodes: usize,
+    /// Trips dropped because their zone has no node (GMNS only).
+    skipped_flow: f64,
 }
 
 #[pymethods]
@@ -339,7 +427,11 @@ impl Demand {
             flows.as_slice()?,
         )
         .map_err(err)?;
-        Ok(Demand { od, num_nodes })
+        Ok(Demand {
+            od,
+            num_nodes,
+            skipped_flow: 0.0,
+        })
     }
 
     /// Reads a TNTP `*_trips.tntp` file for `network`.
@@ -354,7 +446,56 @@ impl Demand {
             &trips.flows,
         )
         .map_err(err)?;
-        Ok(Demand { od, num_nodes })
+        Ok(Demand {
+            od,
+            num_nodes,
+            skipped_flow: 0.0,
+        })
+    }
+
+    /// Reads a GMNS-style demand file (one row per zone pair) for a network read with
+    /// `Network.from_gmns`. Zone trips are split equally over the zone's nodes.
+    #[staticmethod]
+    #[pyo3(signature = (path, network, origin="o_zone_id", destination="d_zone_id", flow="volume", skip_unknown_zones=false))]
+    fn from_gmns(
+        path: &str,
+        network: &Network,
+        origin: &str,
+        destination: &str,
+        flow: &str,
+        skip_unknown_zones: bool,
+    ) -> PyResult<Demand> {
+        let meta = network
+            .gmns
+            .as_ref()
+            .ok_or_else(|| msg("network was not read with Network.from_gmns"))?;
+        let options = pyta_io::gmns::DemandOptions {
+            origin: origin.to_string(),
+            destination: destination.to_string(),
+            flow: flow.to_string(),
+            skip_unknown_zones,
+        };
+        let read = pyta_io::gmns::read_zone_demand(path, &meta.zone_nodes, &options)
+            .map_err(|e| msg(e.to_string()))?;
+        let num_nodes = network.network.num_nodes();
+        let od = core::OdDemand::from_triples(
+            num_nodes,
+            &read.demand.origins,
+            &read.demand.destinations,
+            &read.demand.flows,
+        )
+        .map_err(err)?;
+        Ok(Demand {
+            od,
+            num_nodes,
+            skipped_flow: read.skipped_flow,
+        })
+    }
+
+    /// Trips dropped because their zone has no node (0 unless read with `from_gmns`).
+    #[getter]
+    fn skipped_flow(&self) -> f64 {
+        self.skipped_flow
     }
 
     #[getter]

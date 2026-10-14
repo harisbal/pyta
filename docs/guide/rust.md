@@ -5,7 +5,7 @@ The Rust crates are the same code the Python package runs.
 | crate | contents |
 |---|---|
 | `pyta-core` | network, turns, shortest paths, solvers, path store. No file IO. |
-| `pyta-io` | TNTP reader |
+| `pyta-io` | TNTP and GMNS readers |
 
 ## A full example
 
@@ -26,6 +26,27 @@ let result = gradient_projection(
 println!("{} sweeps, gap {:.2e}, objective {:.2}",
          result.iterations, result.relative_gap, result.objective);
 ```
+
+## Reading a GMNS dataset
+
+```rust
+use pyta_io::gmns::{DemandOptions, GmnsOptions, read_demand, read_network};
+
+let gmns = read_network("path/to/gmns", &GmnsOptions::default())?;
+let trips = read_demand("path/to/demand.csv", &gmns, &DemandOptions::default())?.demand;
+
+let demand = OdDemand::from_triples(
+    gmns.network.num_nodes(), &trips.origins, &trips.destinations, &trips.flows)?;
+let turns = TurnTable::build(
+    &gmns.network, &gmns.is_endpoint, &gmns.turn_exceptions, TurnOptions::default())?;
+let vdf = Bpr::new(gmns.free_flow_time, gmns.capacity, gmns.b, gmns.power)?;
+```
+
+The directory needs `node.csv` and `link.csv`; `movement.csv` and `config.csv` are optional. Set
+`GmnsOptions::length_unit` and `speed_unit` when there is no `config.csv` or when it is wrong. Times are in
+minutes. The rules for zones, undirected links and movements are in
+[decision 0009](../design/decisions/0009-gmns-input.md); `cargo run --release -p pyta-io --example gmns_assign`
+runs a dataset end to end.
 
 ## The pieces
 

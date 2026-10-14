@@ -56,6 +56,7 @@ nav:
           - "0006 Frank-Wolfe": design/decisions/0006-frank-wolfe-reference.md
           - "0007 Parallel sweeps": design/decisions/0007-parallel-sweeps.md
           - "0008 Path tree": design/decisions/0008-path-tree.md
+          - "0009 GMNS input": design/decisions/0009-gmns-input.md
       - Roadmap and limitations: design/roadmap.md
   - Reference:
       - Python API: reference/python.md

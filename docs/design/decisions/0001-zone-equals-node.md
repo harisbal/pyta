@@ -1,5 +1,7 @@
 # 0001. A zone is a node; no connectors
 
+*Amended by [0009](0009-gmns-input.md): GMNS input lets a zone span several nodes, with its demand split equally over them. The assignment engine itself still works on nodes only.*
+
 **Decision.** Demand is given between nodes. There is no connector concept. A per-node flag
 `is_endpoint` marks nodes that paths may start or end at but not pass through.
 

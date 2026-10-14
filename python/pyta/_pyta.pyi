@@ -46,6 +46,27 @@ class Network:
     def from_tntp(path: str) -> "Network":
         """Reads a TNTP ``*_net.tntp`` file. Node numbers become 0-based, links keep
         file order and ``<FIRST THRU NODE>`` becomes the endpoint mask."""
+    @staticmethod
+    def from_gmns(
+        path: str,
+        length_unit: Optional[str] = None,
+        speed_unit: Optional[str] = None,
+        zone_nodes_are_endpoints: bool = False,
+    ) -> "Network":
+        """Reads a GMNS dataset directory (``node.csv``, ``link.csv``, optional
+        ``movement.csv`` and ``config.csv``). Times are in minutes; capacity is per
+        link (per-lane capacity times lanes). Undirected links become two links.
+
+        ``length_unit`` (e.g. ``"mile"``, ``"foot"``, ``"km"``) and ``speed_unit``
+        (``"mph"``, ``"kph"``) override ``config.csv`` and are required without it. A
+        movement table restricts an inbound link only if it lists a movement for it.
+        With ``zone_nodes_are_endpoints`` zone nodes cannot be passed through."""
+    @property
+    def node_ids(self) -> Optional[List[str]]:
+        """``node_id`` of every node as written in the GMNS files (None otherwise)."""
+    @property
+    def link_ids(self) -> Optional[List[str]]:
+        """``link_id`` of every link; an undirected link appears twice (None otherwise)."""
     @property
     def num_nodes(self) -> int:
         """Number of nodes."""
@@ -86,6 +107,22 @@ class Demand:
     @staticmethod
     def from_tntp(path: str, network: Network) -> "Demand":
         """Reads a TNTP ``*_trips.tntp`` file for ``network``."""
+    @staticmethod
+    def from_gmns(
+        path: str,
+        network: Network,
+        origin: str = "o_zone_id",
+        destination: str = "d_zone_id",
+        flow: str = "volume",
+        skip_unknown_zones: bool = False,
+    ) -> "Demand":
+        """Reads a zone-to-zone demand CSV for a network read with ``Network.from_gmns``.
+        ``origin``, ``destination`` and ``flow`` name the columns. A zone's trips are
+        split equally over its nodes. Rows of zones without a node are an error unless
+        ``skip_unknown_zones``, in which case they are summed in ``skipped_flow``."""
+    @property
+    def skipped_flow(self) -> float:
+        """Trips dropped because their zone has no node (0 unless read with ``from_gmns``)."""
     @property
     def num_nodes(self) -> int:
         """Number of nodes the demand was built for."""

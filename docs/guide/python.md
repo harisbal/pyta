@@ -18,6 +18,25 @@ net = pyta.Network.from_tntp("SiouxFalls_net.tntp")
 
 Node numbers become 0-based, links keep file order, and `<FIRST THRU NODE>` becomes the endpoint mask.
 
+### From a GMNS dataset
+
+```python
+net = pyta.Network.from_gmns("path/to/gmns", length_unit="foot", speed_unit="mph")
+demand = pyta.Demand.from_gmns("path/to/demand.csv", net,
+                               origin="orig_taz", destination="dest_taz", flow="total",
+                               skip_unknown_zones=True)
+net.node_ids, net.link_ids     # the ids as written in the files
+demand.skipped_flow            # trips of zones without a node
+```
+
+The directory needs `node.csv` and `link.csv`; `movement.csv` and `config.csv` are optional. Units
+come from `config.csv` unless you pass `length_unit` / `speed_unit`, and you must pass them when
+there is no config or when it is wrong. Times are in minutes. Undirected links become two links,
+a zone's trips are split equally over the nodes that carry its `zone_id`, and a movement table
+restricts an inbound link only if it lists a movement for it. GMNS has no demand table, so
+`Demand.from_gmns` reads a flat zone-to-zone CSV. The reasons are in
+[decision 0009](../design/decisions/0009-gmns-input.md).
+
 ### From tables
 
 ```python

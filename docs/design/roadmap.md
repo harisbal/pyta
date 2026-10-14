@@ -17,7 +17,6 @@
 |---|---|
 | Path memory | the per-OD bookkeeping (a vector of paths per OD pair) now makes up a large share of what is left; Sydney (3 264 zones) and Austin (7 388 zones) are untested and may need bush-based storage |
 | Faster flow updates | the remaining bottleneck on large networks (about 40% of the time on Chicago Regional) |
-| GMNS input | the `movement` table maps onto the turn table |
 | OpenStreetMap networks | download and conversion belong in the Python layer (osm2gmns or osmnx), producing GMNS or flat tables |
 | Multiple time periods | with carry-over of trips that do not finish; needs paths to resume mid-route and demand that starts at intermediate nodes |
 | Link-direction optimiser | built on the assignment engine; see below |

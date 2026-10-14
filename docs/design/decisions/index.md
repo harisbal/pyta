@@ -12,3 +12,4 @@ Short notes on the choices that shaped PyTA, with the reason for each.
 | [0006](0006-frank-wolfe-reference.md) | Frank-Wolfe stays a reference solver |
 | [0007](0007-parallel-sweeps.md) | Parallel sweeps and the hot path |
 | [0008](0008-path-tree.md) | Paths as a tree of steps, per origin |
+| [0009](0009-gmns-input.md) | GMNS input: zones span nodes, movements restrict listed links |
