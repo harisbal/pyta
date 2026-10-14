@@ -241,14 +241,14 @@ dependencies = [
 
 [[package]]
 name = "pytraf-core"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "rayon",
 ]
 
 [[package]]
 name = "pytraf-io"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "csv",
  "pytraf-core",
@@ -257,7 +257,7 @@ dependencies = [
 
 [[package]]
 name = "pytraf-py"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "numpy",
  "pyo3",

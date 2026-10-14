@@ -2,6 +2,10 @@
 
 PyTraf is still in development, so names can change between versions.
 
+## 0.3.1
+
+- The source distribution includes the license file, so it can be uploaded to PyPI.
+
 ## 0.3.0
 
 - The package is now **PyTraf**: `import pytraf`, `pip install pytraf`. Earlier versions were called PyTA.
