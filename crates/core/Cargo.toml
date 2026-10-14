@@ -2,6 +2,7 @@
 name = "pyta-core"
 version = "0.1.0"
 edition = "2024"
+license = "MIT"
 
 [dependencies]
 rayon = "1.12.0"

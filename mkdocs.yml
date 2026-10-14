@@ -1,6 +1,9 @@
 site_name: PyTA
 site_description: Static traffic assignment with a Rust core and Python bindings
-repo_name: pyta
+site_url: https://harisbal.github.io/pyta/
+repo_name: harisbal/pyta
+repo_url: https://github.com/harisbal/pyta
+edit_uri: edit/master/docs/
 docs_dir: docs
 strict: true
 

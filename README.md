@@ -2,6 +2,8 @@
 
 Static traffic assignment with a Rust core and Python bindings.
 
+**Documentation: <https://harisbal.github.io/pyta/>**
+
 PyTA works out which routes traffic takes on a road network once every driver has settled on their
 quickest one (the **user equilibrium**). It keeps the routes, not just link totals, and handles **turn
 bans and delays**, **several vehicle classes** and **consecutive time periods**. Inputs are flat tables
@@ -120,3 +122,8 @@ cargo run --release -p pyta-io --example order_benchmark -- Anaheim 1e-4 1e-6
 
 PyTA solves the static problem: no queue spillback, and delays depend only on a link's or turn's own
 traffic. See [the roadmap](docs/design/roadmap.md).
+
+## License
+
+MIT. The benchmark networks in `data/tntp` come from
+[TransportationNetworks](https://github.com/bstabler/TransportationNetworks) and keep their own terms.
