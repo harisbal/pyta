@@ -50,13 +50,13 @@ def published():
 
 def test_published_equilibrium(sioux, published):
     net, demand = sioux
-    result = pyta.assign(net, demand, gap=1e-8)
+    result = net.assign(demand, gap=1e-8)
     assert result.converged and result.relative_gap <= 1e-8
-    assert abs(result.objective - PUBLISHED_OBJECTIVE) < 0.01
-    assert np.abs(result.link_flow - published).max() < 0.1
-    assert result.link_flow.dtype == np.float64
-    assert result.turn_flow.shape == (net.num_turns,)
-    assert len(result.sweep_gaps) == result.iterations
+    assert abs(result.diagnostics.objective - PUBLISHED_OBJECTIVE) < 0.01
+    assert np.abs(result.links.by_class[0] - published).max() < 0.1
+    assert result.links.by_class[0].dtype == np.float64
+    assert result.turns.by_class[0].shape == (net.num_turns,)
+    assert len(result.diagnostics.sweep_gaps) == result.iterations
     assert "converged=True" in repr(result)
 
 
@@ -80,15 +80,15 @@ def test_tables_and_dataframes_build_the_same_model(sioux):
     o, d, q = read_trip_table()
     demand = pyta.Demand.from_table(rebuilt, pd.DataFrame({"origin": o, "destination": d, "flow": q}))
     assert demand.total() == 360_600.0
-    a = pyta.assign(rebuilt, demand, gap=1e-9)
-    b = pyta.assign(net, demand, gap=1e-9)
-    assert np.allclose(a.link_flow, b.link_flow, atol=1e-6)
+    a = rebuilt.assign(demand, gap=1e-9)
+    b = net.assign(demand, gap=1e-9)
+    assert np.allclose(a.links.by_class[0], b.links.by_class[0], atol=1e-6)
 
 
 def test_paths_table_is_consistent(sioux):
     net, demand = sioux
-    result = pyta.assign(net, demand, gap=1e-6)
-    paths = result.paths()
+    result = net.assign(demand, gap=1e-6)
+    paths = result.paths.arrays()
     n = len(paths["flow"])
     assert len(paths["origin"]) == len(paths["destination"]) == n
     assert len(paths["link_offsets"]) == n + 1
@@ -99,41 +99,41 @@ def test_paths_table_is_consistent(sioux):
     rebuilt = np.zeros(net.num_links)
     counts = np.diff(paths["link_offsets"])
     np.add.at(rebuilt, paths["links"], np.repeat(paths["flow"], counts))
-    assert np.allclose(rebuilt, result.link_flow, atol=1e-6)
+    assert np.allclose(rebuilt, result.links.by_class[0], atol=1e-6)
 
 
 @pytest.mark.parametrize("order", ["fixed", "shuffle", "alternate", "largest_gap",
                                    "largest_demand", "smallest_demand"])
 def test_every_origin_order_converges(sioux, published, order):
     net, demand = sioux
-    result = pyta.assign(net, demand, gap=1e-6, order=order, seed=3)
+    result = net.assign(demand, gap=1e-6, order=order, seed=3)
     assert result.converged
-    assert np.abs(result.link_flow - published).max() < 5.0  # 1e-6 gap: a few vehicles
+    assert np.abs(result.links.by_class[0] - published).max() < 5.0  # 1e-6 gap: a few vehicles
 
 
 def test_iteration_limit_is_reported(sioux):
     net, demand = sioux
-    result = pyta.assign(net, demand, gap=1e-12, max_iter=3)
+    result = net.assign(demand, gap=1e-12, max_iter=3)
     assert not result.converged and result.iterations == 3
 
 
 def test_chunk_size_and_threads(sioux, published):
     net, demand = sioux
-    sequential = pyta.assign(net, demand, gap=1e-8, chunk_size=1)
-    chunked = pyta.assign(net, demand, gap=1e-8, chunk_size=8)
+    sequential = net.assign(demand, gap=1e-8, chunk_size=1)
+    chunked = net.assign(demand, gap=1e-8, chunk_size=8)
     assert sequential.converged and chunked.converged
-    assert np.abs(chunked.link_flow - published).max() < 0.1
+    assert np.abs(chunked.links.by_class[0] - published).max() < 0.1
     # The same chunk size gives bit-identical answers whatever the number of threads.
-    one = pyta.assign(net, demand, gap=1e-7, chunk_size=8, threads=1)
-    four = pyta.assign(net, demand, gap=1e-7, chunk_size=8, threads=4)
-    assert np.array_equal(one.link_flow, four.link_flow)
+    one = net.assign(demand, gap=1e-7, chunk_size=8, threads=1)
+    four = net.assign(demand, gap=1e-7, chunk_size=8, threads=4)
+    assert np.array_equal(one.links.by_class[0], four.links.by_class[0])
     with pytest.raises(ValueError, match="threads must be at least 1"):
-        pyta.assign(net, demand, threads=0)
+        net.assign(demand, threads=0)
 
 
 def test_phase_times(sioux):
     net, demand = sioux
-    times = pyta.assign(net, demand, gap=1e-6).times
+    times = net.assign(demand, gap=1e-6).diagnostics.times
     assert set(times) == {"initial_assignment", "shortest_paths", "flow_updates",
                           "sweep_rebuild", "gap_checks"}
     assert all(t >= 0.0 for t in times.values())
@@ -145,7 +145,7 @@ def test_assign_releases_the_gil(sioux):
     results = []
 
     def work():
-        results.append(pyta.assign(net, demand, gap=1e-7).relative_gap)
+        results.append(net.assign(demand, gap=1e-7).relative_gap)
 
     threads = [threading.Thread(target=work) for _ in range(4)]
     for t in threads:
@@ -163,19 +163,19 @@ def test_two_classes_split_reproduce_the_published_equilibrium(sioux, published)
     o, d, q = read_trip_table()
     cars = pyta.Demand(24, o, d, 0.6 * q)
     vans = pyta.Demand(24, o, d, 0.4 * q)
-    result = pyta.assign(net, [cars, vans], gap=1e-8)
-    assert result.converged and len(result.class_link_flow) == 2
-    total = result.class_link_flow[0] + result.class_link_flow[1]
+    result = net.assign([cars, vans], gap=1e-8)
+    assert result.converged and len(result.links.by_class) == 2
+    total = result.links.by_class[0] + result.links.by_class[1]
     assert np.abs(total - published).max() < 0.1
-    assert np.abs(result.link_volume - published).max() < 0.1
-    assert result.objective is None  # not defined for several classes
+    assert np.abs(result.links.volume - published).max() < 0.1
+    assert np.isnan(result.diagnostics.objective)  # not defined for several classes
 
 
 def test_objective_only_for_a_single_unit_pce_class(sioux):
     net, demand = sioux
-    assert pyta.assign(net, demand, gap=1e-4).objective is not None
+    assert not np.isnan(net.assign(demand, gap=1e-4).diagnostics.objective)
     heavy = pyta.TrafficClass(demand, pce=2.0)
-    assert pyta.assign(net, heavy, gap=1e-4).objective is None
+    assert np.isnan(net.assign(heavy, gap=1e-4).diagnostics.objective)
 
 
 def two_parallel_links():
@@ -189,15 +189,15 @@ def test_toll_and_ban_have_closed_form_equilibria():
     net = two_parallel_links()
     ten = pyta.Demand.from_table(net, {"origin": [0], "destination": [1], "flow": [10.0]})
     toll = pyta.TrafficClass(ten, extra_link_cost=np.array([5.0, 0.0]))
-    result = pyta.assign(net, [ten, toll], gap=1e-10)
-    a, b = result.class_link_flow
+    result = net.assign([ten, toll], gap=1e-10)
+    a, b = result.links.by_class
     assert np.allclose(a, [10.0, 0.0], atol=1e-6)
     assert np.allclose(b, [2.5, 7.5], atol=1e-6)
 
     twenty_five = pyta.Demand.from_table(net, {"origin": [0], "destination": [1], "flow": [25.0]})
     banned = pyta.TrafficClass(ten, allowed_links=np.array([False, True]))
-    result = pyta.assign(net, [twenty_five, banned], gap=1e-10)
-    a, b = result.class_link_flow
+    result = net.assign([twenty_five, banned], gap=1e-10)
+    a, b = result.links.by_class
     assert np.allclose(a, [22.5, 2.5], atol=1e-6)
     assert np.allclose(b, [0.0, 10.0], atol=1e-6)
 
@@ -205,9 +205,9 @@ def test_toll_and_ban_have_closed_form_equilibria():
 def test_pce_loads_the_network_by_its_weight():
     net = two_parallel_links()
     fifteen = pyta.Demand.from_table(net, {"origin": [0], "destination": [1], "flow": [15.0]})
-    result = pyta.assign(net, pyta.TrafficClass(fifteen, pce=2.0), gap=1e-10)
-    assert np.allclose(result.link_volume, [20.0, 10.0], atol=1e-6)
-    assert np.allclose(result.link_flow, [10.0, 5.0], atol=1e-6)
+    result = net.assign(pyta.TrafficClass(fifteen, pce=2.0), gap=1e-10)
+    assert np.allclose(result.links.volume, [20.0, 10.0], atol=1e-6)
+    assert np.allclose(result.links.by_class[0], [10.0, 5.0], atol=1e-6)
 
 
 # --------------------------------------------------------------------- turns
@@ -230,33 +230,33 @@ def test_turn_delays_and_penalties_have_closed_form_equilibria():
     net, demand = two_turn_routes(delays)
     from_link, to_link = net.turn_links()
     assert list(zip(from_link, to_link)) == [(0, 1), (2, 3)]
-    result = pyta.assign(net, demand, gap=1e-10)
-    assert np.allclose(result.turn_flow, [15.0, 15.0], atol=1e-6)
+    result = net.assign(demand, gap=1e-10)
+    assert np.allclose(result.turns.by_class[0], [15.0, 15.0], atol=1e-6)
 
     # A fixed penalty of 2 on the second turn moves the split to 25 / 5.
     delays["penalty"] = [np.nan, 2.0]
     net, demand = two_turn_routes(delays)
-    result = pyta.assign(net, demand, gap=1e-10)
-    assert np.allclose(result.turn_flow, [25.0, 5.0], atol=1e-6)
+    result = net.assign(demand, gap=1e-10)
+    assert np.allclose(result.turns.by_class[0], [25.0, 5.0], atol=1e-6)
 
 
 def test_banned_turn_forces_the_other_route():
     net, demand = two_turn_routes({"from_link": [0], "to_link": [1], "banned": [True]})
     assert net.num_turns == 1
-    result = pyta.assign(net, demand, gap=1e-10)
-    assert np.allclose(result.link_flow, [0.0, 0.0, 30.0, 30.0])
+    result = net.assign(demand, gap=1e-10)
+    assert np.allclose(result.links.by_class[0], [0.0, 0.0, 30.0, 30.0])
 
 
-def test_endpoint_nodes_are_not_passed_through():
-    # Node 1 sits on the cheap route; making it an endpoint forces the long way round.
+def test_centroids_are_not_passed_through():
+    # Node 1 sits on the cheap route; making it a centroid forces the long way round.
     links = {"from_node": [0, 1, 0, 2], "to_node": [1, 3, 2, 3], "free_flow_time": [1.0, 1.0, 5.0, 5.0],
              "capacity": [100.0] * 4}
     open_net = pyta.Network.from_tables(links)
     demand = pyta.Demand.from_table(open_net, {"origin": [0], "destination": [3], "flow": [10.0]})
-    closed = pyta.Network.from_tables(links, is_endpoint=[False, True, False, False])
-    assert pyta.assign(open_net, demand).link_flow[0] > 9.0
-    assert pyta.assign(closed, demand).link_flow[0] == 0.0
-    assert closed.is_endpoint.tolist() == [False, True, False, False]
+    closed = pyta.Network.from_tables(links, is_centroid=[False, True, False, False])
+    assert open_net.assign(demand).links.by_class[0][0] > 9.0
+    assert closed.assign(demand).links.by_class[0][0] == 0.0
+    assert closed.is_centroid.tolist() == [False, True, False, False]
 
 
 # -------------------------------------------------------------------- errors
@@ -265,11 +265,11 @@ def test_endpoint_nodes_are_not_passed_through():
 def test_bad_input_raises_value_error(sioux):
     net, demand = sioux
     with pytest.raises(ValueError, match="unknown order"):
-        pyta.assign(net, demand, order="sideways")
+        net.assign(demand, order="sideways")
     with pytest.raises(ValueError, match="at least one class"):
-        pyta.assign(net, [])
+        net.assign([])
     with pytest.raises(ValueError, match="must be a Demand"):
-        pyta.assign(net, "demand")
+        net.assign("demand")
     with pytest.raises(ValueError, match="missing column 'capacity'"):
         pyta.Network.from_tables({"from_node": [0], "to_node": [1], "free_flow_time": [1.0]})
     with pytest.raises(ValueError):  # node id out of range
@@ -280,17 +280,17 @@ def test_bad_input_raises_value_error(sioux):
     with pytest.raises(ValueError, match="all of delay_free_flow"):
         two_turn_routes({"from_link": [0], "to_link": [1], "delay_free_flow": [1.0]})
     with pytest.raises(ValueError, match="InvalidClass|pce"):
-        pyta.assign(net, pyta.TrafficClass(demand, pce=0.0))
+        net.assign(pyta.TrafficClass(demand, pce=0.0))
     with pytest.raises(IndexError):
-        pyta.assign(net, demand, gap=1e-3).paths(class_index=4)
+        net.assign(demand, gap=1e-3).paths.arrays(class_index=4)
 
 
 def test_unreachable_demand_is_an_error():
     net = pyta.Network.from_tables({"from_node": [0], "to_node": [1], "free_flow_time": [1.0],
                                     "capacity": [10.0]}, num_nodes=3)
     demand = pyta.Demand.from_table(net, {"origin": [0], "destination": [2], "flow": [1.0]})
-    with pytest.raises(ValueError, match="Unreachable"):
-        pyta.assign(net, demand)
+    with pytest.raises(ValueError, match="no allowed path serves"):
+        net.assign(demand)
 
 
 def two_zone_network():
@@ -304,11 +304,11 @@ def test_skip_unreachable_assigns_the_rest_and_reports_the_rest():
     net = two_zone_network()
     trips = {"origin": [0, 2, 0], "destination": [2, 0, 3], "flow": [10.0, 4.0, 1.5]}
     demand = pyta.Demand.from_table(net, trips)
-    result = pyta.assign(net, demand, unreachable="skip")
+    result = net.assign(demand, unreachable="skip")
     assert result.converged
-    assert result.link_flow.tolist() == [10.0, 10.0]
-    assert result.unrouted_flow == [5.5]
-    table = result.unrouted_table().sort_values("origin").reset_index(drop=True)
+    assert result.links.by_class[0].tolist() == [10.0, 10.0]
+    assert result.unrouted.flow == [5.5]
+    table = result.unrouted.table().sort_values("origin").reset_index(drop=True)
     assert table.to_dict("list") == {"origin": [0, 2], "destination": [3, 0], "flow": [1.5, 4.0]}
 
 
@@ -317,40 +317,40 @@ def test_skip_unreachable_reports_per_class_and_honours_allowed_links():
     demand = pyta.Demand.from_table(net, {"origin": [0], "destination": [2], "flow": [3.0]})
     cars = pyta.TrafficClass(demand, name="cars")
     trucks = pyta.TrafficClass(demand, name="trucks", allowed_links=np.array([True, False]))
-    result = pyta.assign(net, [cars, trucks], unreachable="skip")
-    assert result.unrouted_flow == [0.0, 3.0]
-    assert result.class_link_flow[0].tolist() == [3.0, 3.0]
-    assert result.class_link_flow[1].tolist() == [0.0, 0.0]
-    table = result.unrouted_table()
+    result = net.assign([cars, trucks], unreachable="skip")
+    assert result.unrouted.flow == [0.0, 3.0]
+    assert result.links.by_class[0].tolist() == [3.0, 3.0]
+    assert result.links.by_class[1].tolist() == [0.0, 0.0]
+    table = result.unrouted.table()
     assert table["class"].tolist() == ["trucks"]
-    with pytest.raises(ValueError, match="Unreachable"):
-        pyta.assign(net, [cars, trucks])
+    with pytest.raises(ValueError, match="no allowed path serves"):
+        net.assign([cars, trucks])
 
 
 def test_skip_unreachable_with_nothing_left_to_route():
     net = two_zone_network()
     demand = pyta.Demand.from_table(net, {"origin": [2], "destination": [0], "flow": [4.0]})
-    result = pyta.assign(net, demand, unreachable="skip")
+    result = net.assign(demand, unreachable="skip")
     assert result.converged
-    assert result.link_flow.tolist() == [0.0, 0.0]
-    assert result.unrouted_flow == [4.0]
+    assert result.links.by_class[0].tolist() == [0.0, 0.0]
+    assert result.unrouted.flow == [4.0]
 
 
 def test_skip_unreachable_changes_nothing_when_all_demand_is_routable():
     net = two_zone_network()
     demand = pyta.Demand.from_table(net, {"origin": [0], "destination": [2], "flow": [10.0]})
-    plain = pyta.assign(net, demand)
-    skipped = pyta.assign(net, demand, unreachable="skip")
-    assert skipped.link_flow.tolist() == plain.link_flow.tolist()
-    assert skipped.unrouted_flow == [0.0]
-    assert len(skipped.unrouted_table()) == 0
+    plain = net.assign(demand)
+    skipped = net.assign(demand, unreachable="skip")
+    assert skipped.links.by_class[0].tolist() == plain.links.by_class[0].tolist()
+    assert skipped.unrouted.flow == [0.0]
+    assert len(skipped.unrouted.table()) == 0
 
 
 def test_unreachable_option_is_validated():
     net = two_zone_network()
     demand = pyta.Demand.from_table(net, {"origin": [0], "destination": [2], "flow": [1.0]})
-    with pytest.raises(ValueError, match="unreachable must be"):
-        pyta.assign(net, demand, unreachable="ignore")
+    with pytest.raises(ValueError, match="unknown unreachable .ignore.: use one of"):
+        net.assign(demand, unreachable="ignore")
 
 
 # ------------------------------------------------------------------ GMNS
@@ -390,9 +390,9 @@ def test_gmns_sioux_falls_matches_published_equilibrium(tmp_path):
     assert gmns.num_links == net.num_links and gmns.node_ids[0] == "1"
     demand = pyta.Demand.from_gmns(gmns, str(tmp_path / "demand.csv"))
     assert demand.total() == pytest.approx(360_600)
-    result = pyta.assign(gmns, demand, gap=1e-6)
+    result = gmns.assign(demand, gap=1e-6)
     assert result.converged
-    assert result.objective == pytest.approx(PUBLISHED_OBJECTIVE, rel=1e-6)
+    assert result.diagnostics.objective == pytest.approx(PUBLISHED_OBJECTIVE, rel=1e-6)
 
 
 def test_gmns_zones_movements_and_unknown_zones(tmp_path):
@@ -414,7 +414,7 @@ def test_gmns_zones_movements_and_unknown_zones(tmp_path):
         pyta.Demand.from_gmns(net, str(tmp_path / "demand.csv"))
     demand = pyta.Demand.from_gmns(net, str(tmp_path / "demand.csv"), skip_unknown_zones=True)
     assert demand.total() == pytest.approx(60)
-    assert demand.skipped_flow == 5
+    assert demand.unknown_zone_flow == 5
 
 
 def test_gmns_needs_units_and_a_gmns_network(tmp_path):
@@ -436,30 +436,30 @@ def test_preload_acts_like_fixed_traffic():
     # 15 + x = 20 + (10 - x) gives x = 7.5.
     net = two_parallel_links()
     ten = pyta.Demand.from_table(net, {"origin": [0], "destination": [1], "flow": [10.0]})
-    result = pyta.assign(net, ten, gap=1e-10, link_preload=np.array([5.0, 0.0]))
-    np.testing.assert_allclose(result.link_flow, [7.5, 2.5], atol=1e-6)
-    np.testing.assert_allclose(result.link_time, [22.5, 22.5], atol=1e-6)
-    np.testing.assert_allclose(result.link_preload, [5.0, 0.0])
-    assert result.turn_preload is None
+    result = net.assign(ten, gap=1e-10, link_preload=np.array([5.0, 0.0]))
+    np.testing.assert_allclose(result.links.by_class[0], [7.5, 2.5], atol=1e-6)
+    np.testing.assert_allclose(result.links.time, [22.5, 22.5], atol=1e-6)
+    np.testing.assert_allclose(result.links.preload, [5.0, 0.0])
+    assert result.turns.preload is None
 
     # The same as five vehicles that can only use link 1.
     five = pyta.Demand.from_table(net, {"origin": [0], "destination": [1], "flow": [5.0]})
     fixed = pyta.TrafficClass(five, allowed_links=np.array([True, False]))
-    both = pyta.assign(net, [ten, fixed], gap=1e-10)
-    np.testing.assert_allclose(both.class_link_flow[0], result.link_flow, atol=1e-6)
+    both = net.assign([ten, fixed], gap=1e-10)
+    np.testing.assert_allclose(both.links.by_class[0], result.links.by_class[0], atol=1e-6)
 
 
 def test_zero_preload_changes_nothing_and_bad_preloads_are_rejected(sioux):
     net, demand = sioux
-    plain = pyta.assign(net, demand, gap=1e-6)
-    zero = pyta.assign(net, demand, gap=1e-6, link_preload=np.zeros(net.num_links),
+    plain = net.assign(demand, gap=1e-6)
+    zero = net.assign(demand, gap=1e-6, link_preload=np.zeros(net.num_links),
                        turn_preload=np.zeros(net.num_turns))
-    np.testing.assert_array_equal(zero.link_flow, plain.link_flow)
-    assert zero.objective == plain.objective
+    np.testing.assert_array_equal(zero.links.by_class[0], plain.links.by_class[0])
+    assert zero.diagnostics.objective == plain.diagnostics.objective
     with pytest.raises(ValueError, match="link_preload has 3 entries"):
-        pyta.assign(net, demand, link_preload=np.zeros(3))
+        net.assign(demand, link_preload=np.zeros(3))
     with pytest.raises(ValueError, match="non-negative"):
-        pyta.assign(net, demand, turn_preload=np.full(net.num_turns, -1.0))
+        net.assign(demand, turn_preload=np.full(net.num_turns, -1.0))
 
 
 # ------------------------------------------------------------------ tables
@@ -476,25 +476,25 @@ def home_to_work():
 
 def test_tables_match_the_arrays():
     net, demand = home_to_work()
-    result = pyta.assign(net, demand, gap=1e-10)
+    result = net.assign(demand, gap=1e-10)
 
-    links = result.link_table()
+    links = result.links.table()
     assert list(links.columns) == ["from_node", "to_node", "flow", "volume", "voc", "time"]
-    np.testing.assert_array_equal(links["flow"], result.link_flow)
-    np.testing.assert_allclose(links["voc"], result.link_volume / net.capacity)
+    np.testing.assert_array_equal(links["flow"], result.links.by_class[0])
+    np.testing.assert_allclose(links["voc"], result.links.volume / net.capacity)
 
-    turns = result.turn_table()
+    turns = result.turns.table()
     assert list(turns.columns) == ["from_link", "to_link", "node", "flow", "volume", "time"]
     np.testing.assert_array_equal(turns["node"], [1, 2, 2, 1])
 
     # Every used path has the same time at equilibrium, and the times add up.
-    paths = result.path_table()
+    paths = result.paths.table()
     assert sorted(paths["links"]) == [(0, 1), (2, 3), (2, 4, 1)]
     np.testing.assert_allclose(paths["time"], paths["time"].iloc[0], rtol=1e-6)
-    expected = [sum(result.link_time[list(p)]) for p in paths["links"]]
+    expected = [sum(result.links.time[list(p)]) for p in paths["links"]]
     np.testing.assert_allclose(paths["time"], expected)
     long = paths.explode("links")
-    assert long.loc[long["links"] == 4, "flow"].sum() == pytest.approx(result.link_flow[4])
+    assert long.loc[long["links"] == 4, "flow"].sum() == pytest.approx(result.links.by_class[0][4])
 
 
 def test_tables_label_classes_and_preloads():
@@ -502,14 +502,155 @@ def test_tables_label_classes_and_preloads():
     trucks = pyta.TrafficClass(
         pyta.Demand.from_table(net, {"origin": [0], "destination": [3], "flow": [200.0]}),
         pce=2.5, allowed_links=np.array([True, True, False, False, False]), name="trucks")
-    result = pyta.assign(net, [demand, trucks], link_preload=np.full(5, 10.0))
+    result = net.assign([demand, trucks], link_preload=np.full(5, 10.0))
     assert result.class_names == ["0", "trucks"]
 
-    links = result.link_table()
+    links = result.links.table()
     assert {"flow_0", "flow_trucks", "preload"} <= set(links.columns)
     np.testing.assert_allclose(links["flow"], links["flow_0"] + links["flow_trucks"])
-    np.testing.assert_allclose(links["voc"], (result.link_volume + 10.0) / net.capacity)
+    np.testing.assert_allclose(links["voc"], (result.links.volume + 10.0) / net.capacity)
 
-    paths = result.path_table()
+    paths = result.paths.table()
     assert set(paths["class"]) == {"0", "trucks"}
-    assert list(result.path_table(1)["links"]) == [(0, 1)]
+    assert list(result.paths.table(1)["links"]) == [(0, 1)]
+
+
+# ---------------------------------------------------------------- grouped result and options
+
+
+def two_class_result():
+    net = two_zone_network()
+    demand = pyta.Demand.from_table(net, {"origin": [0], "destination": [2], "flow": [3.0]})
+    cars = pyta.TrafficClass(demand, name="cars")
+    trucks = pyta.TrafficClass(demand, pce=2.0, name="trucks")
+    return net, net.assign([cars, trucks], gap=1e-8)
+
+
+def test_result_groups_agree_with_each_other():
+    net, result = two_class_result()
+    links = result.links
+    assert links.by_class["cars"] is links.by_class[0]
+    assert links.by_class.names == ["cars", "trucks"]
+    np.testing.assert_allclose(links.flow, links.by_class[0] + links.by_class[1])
+    np.testing.assert_allclose(links.volume, links.by_class[0] + 2.0 * links.by_class[1])
+    np.testing.assert_allclose(links.voc, links.volume / net.capacity)
+    assert links.preload is None and result.turns.preload is None
+    with pytest.raises(KeyError, match="no class named 'vans'"):
+        links.by_class["vans"]
+    assert not links.flow.flags.writeable  # cached arrays cannot be edited by accident
+    table = links.table()
+    assert list(table["flow_trucks"]) == list(links.by_class["trucks"])
+    assert result.paths.table()["class"].tolist() == ["cars", "trucks"]
+    assert result.paths.table(1)["class"].tolist() == ["trucks"]
+
+
+def test_diagnostics_and_summary():
+    _, result = two_class_result()
+    d = result.diagnostics
+    assert len(d.sweep_gaps) == result.iterations
+    assert set(d.times) >= {"shortest_paths", "flow_updates"}
+    assert np.isnan(d.objective)  # several classes
+    text = result.summary()
+    assert "converged after" in text and "2 classes" in text
+    assert "cars" in text and "trucks" in text and "busiest link" in text
+    assert "left out" not in text
+    assert repr(result).startswith("AssignResult(converged=True")
+
+
+def test_summary_reports_demand_left_out():
+    net = two_zone_network()
+    demand = pyta.Demand.from_table(net, {"origin": [0, 2], "destination": [2, 0], "flow": [3.0, 4.0]})
+    result = net.assign(demand, unreachable="skip")
+    assert result.unrouted.total == 4.0 and len(result.unrouted) == 1
+    assert "4.0 trips left out" in result.summary()
+
+
+def test_options_are_string_enums_that_check_their_values():
+    net = two_zone_network()
+    demand = pyta.Demand.from_table(net, {"origin": [0], "destination": [2], "flow": [3.0]})
+    assert pyta.Order.SHUFFLE == "shuffle" and str(pyta.Order.LARGEST_GAP) == "largest_gap"
+    by_enum = net.assign(demand, order=pyta.Order.SHUFFLE, seed=2)
+    by_name = net.assign(demand, order="shuffle", seed=2)
+    np.testing.assert_array_equal(by_enum.links.flow, by_name.links.flow)
+    with pytest.raises(ValueError, match=r"unknown order 'sideways': use one of 'fixed', 'shuffle'"):
+        net.assign(demand, order="sideways")
+    with pytest.raises(ValueError, match="unknown unreachable"):
+        net.assign(demand, unreachable="ignore")
+    assert net.assign(demand, unreachable=pyta.Unreachable.SKIP).unrouted.total == 0.0
+
+
+def test_options_after_classes_are_keyword_only():
+    net = two_zone_network()
+    demand = pyta.Demand.from_table(net, {"origin": [0], "destination": [2], "flow": [3.0]})
+    with pytest.raises(TypeError):
+        net.assign(demand, 1e-6)
+    with pytest.raises(TypeError):
+        pyta.assign(net, demand, 1e-6)
+
+
+def test_function_and_method_are_the_same():
+    net = two_zone_network()
+    demand = pyta.Demand.from_table(net, {"origin": [0], "destination": [2], "flow": [3.0]})
+    np.testing.assert_array_equal(pyta.assign(net, demand).links.flow, net.assign(demand).links.flow)
+
+
+def test_unreachable_error_names_the_pairs():
+    net = pyta.Network.from_tables({"from_node": [0], "to_node": [1], "free_flow_time": [1.0],
+                                    "capacity": [10.0]}, num_nodes=8)
+    pairs = [(0, d) for d in range(2, 8)]  # six pairs have no path
+    demand = pyta.Demand.from_table(
+        net, {"origin": [o for o, _ in pairs], "destination": [d for _, d in pairs], "flow": [2.0] * 6})
+    with pytest.raises(ValueError) as error:
+        net.assign(demand)
+    message = str(error.value)
+    assert "6 origin-destination pair(s) carrying 12 trips" in message
+    assert "0 -> 2 (class 0, 2 trips)" in message and "and 1 more" in message
+    assert "unreachable='skip'" in message
+
+
+def test_old_names_still_work_but_warn():
+    net, result = two_class_result()
+    old = {
+        "link_volume": result.links.volume,
+        "turn_volume": result.turns.volume,
+        "link_time": result.links.time,
+        "link_flow": result.links.by_class[0],
+        "unrouted_flow": result.unrouted.flow,
+        "sweep_gaps": result.diagnostics.sweep_gaps,
+        "times": result.diagnostics.times,
+    }
+    for name, value in old.items():
+        with pytest.warns(DeprecationWarning, match=f"AssignResult.{name} is deprecated"):
+            got = getattr(result, name)
+        np.testing.assert_array_equal(got, value)
+    with pytest.warns(DeprecationWarning, match="class_link_flow"):
+        assert len(result.class_link_flow) == 2
+    with pytest.warns(DeprecationWarning):
+        assert result.objective is None
+    with pytest.warns(DeprecationWarning, match=r"link_table\(\) is deprecated"):
+        assert len(result.link_table()) == net.num_links
+    with pytest.warns(DeprecationWarning, match="path_table"):
+        assert len(result.path_table(0)) > 0
+    with pytest.warns(DeprecationWarning, match=r"result.paths\(class_index\)"):
+        assert len(result.paths(1)["flow"]) > 0
+    with pytest.warns(DeprecationWarning, match=r"result.unrouted\(\)"):
+        assert len(result.unrouted()["flow"]) == 0
+    with pytest.warns(DeprecationWarning, match="unrouted_table"):
+        assert len(result.unrouted_table()) == 0
+
+
+def test_old_centroid_and_intrazonal_names_still_work_but_warn():
+    links = {"from_node": [0, 1], "to_node": [1, 2], "free_flow_time": [1.0, 1.0], "capacity": [10.0, 10.0]}
+    flags = [False, True, False]
+    with pytest.warns(DeprecationWarning, match="is_endpoint is deprecated"):
+        net = pyta.Network.from_tables(links, is_endpoint=flags)
+    assert net.is_centroid.tolist() == flags
+    with pytest.warns(DeprecationWarning, match="Network.is_endpoint is deprecated"):
+        assert net.is_endpoint.tolist() == flags
+    with pytest.warns(DeprecationWarning, match="is_endpoint is deprecated"):
+        pyta.Network(3, np.array([0, 1]), np.array([1, 2]), np.ones(2), np.full(2, 10.0),
+                     is_endpoint=np.array(flags))
+    demand = pyta.Demand.from_table(net, {"origin": [0], "destination": [0], "flow": [5.0]})
+    assert demand.unknown_zone_flow == 0.0
+    with pytest.warns(DeprecationWarning, match="Demand.skipped_flow is deprecated"):
+        assert demand.skipped_flow == demand.unknown_zone_flow

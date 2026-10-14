@@ -23,8 +23,8 @@ Turn 2 is centre → shortcut. Ban it and the 508 shortcut drivers move to the o
 
 ```python
 turns = pd.DataFrame({"from_link": [2], "to_link": [4], "banned": [True]})
-banned = pyta.assign(pyta.Network.from_tables(links, turns), demand)
-banned.link_flow.round()
+banned = pyta.Network.from_tables(links, turns).assign(demand)
+banned.links.flow.round()
 # array([1675., 1675., 1325., 1325.,    0.])
 ```
 
@@ -52,8 +52,8 @@ truck_demand = pyta.Demand.from_table(net, truck_trips)
 cars   = pyta.TrafficClass(demand, name="cars")
 trucks = pyta.TrafficClass(truck_demand, pce=2.5, name="trucks",
                            allowed_links=np.array([True, True, False, False, False]))
-mixed = pyta.assign(net, [cars, trucks])
-mixed.link_table().round()
+mixed = net.assign([cars, trucks])
+mixed.links.table().round()
 ```
 
 ```text
@@ -87,8 +87,8 @@ Run 100 buses an hour through the centre, each counting as 3 cars:
 
 ```python
 buses = np.array([0, 0, 300.0, 300.0, 0])        # car units on links 2 and 3
-loaded = pyta.assign(net, demand, link_preload=buses)
-loaded.path_table().round(2)
+loaded = net.assign(demand, link_preload=buses)
+loaded.paths.table().round(2)
 ```
 
 ```text
@@ -104,11 +104,11 @@ does the same for turns.
 
 ## Select-link analysis
 
-`path_table()` keeps each path's links as a tuple. `explode` turns it into one row per path and link,
+`paths.table()` keeps each path's links as a tuple. `explode` turns it into one row per path and link,
 which makes select-link analysis a filter. Who uses the shortcut (link 4) in the mixed run?
 
 ```python
-paths = mixed.path_table().explode("links")
+paths = mixed.paths.table().explode("links")
 paths[paths["links"] == 4].groupby("class")["flow"].sum()
 # class
 # cars    544.300375
@@ -116,19 +116,38 @@ paths[paths["links"] == 4].groupby("class")["flow"].sum()
 
 ## Results
 
-| method or attribute | meaning |
-|---|---|
-| `link_table()`, `turn_table()` | DataFrames per link and per turn: flows (per class if several), volume, preload, volume/capacity, time |
-| `path_table(class_index=None)` | DataFrame per path: class, origin, destination, flow, time, links |
-| `link_flow`, `turn_flow` | numpy: vehicles per link and per turn (first class) |
-| `class_link_flow`, `class_turn_flow` | numpy: one array per class |
-| `link_volume`, `turn_volume` | numpy: all classes in car units, preload excluded |
-| `link_time`, `turn_time` | numpy: travel time at the final volumes |
-| `converged`, `iterations`, `relative_gap` | whether and how well it converged |
-| `objective` | the Beckmann objective; only for a single class with PCE 1 |
-| `paths(class_index=0)` | every path as flat numpy arrays, faster than `path_table()` for large models |
+`net.assign(...)` returns an `AssignResult`. It groups what it holds by what it describes, and every group
+has the same shape:
 
-The tables need pandas; the numpy attributes do not.
+| group | holds |
+|---|---|
+| `result.links`, `result.turns` | one value per link or per turn, as numpy arrays (see below), and `table()` for a DataFrame |
+| `result.paths` | `table(class_index=None)`: a DataFrame per path (class, origin, destination, flow, time, links); `arrays(class_index=0)`: the same as flat numpy arrays, faster for large models |
+| `result.unrouted` | demand left out by `unreachable="skip"`: `flow` per class, `total`, `table()`, `arrays()` |
+| `result.diagnostics` | `sweep_gaps`, `times` per phase, and the Beckmann `objective` (NaN unless a single class has PCE 1) |
+| `result.converged`, `iterations`, `relative_gap` | whether and how well it converged |
+
+`result.links` and `result.turns` have these arrays:
+
+| attribute | meaning |
+|---|---|
+| `flow` | vehicles of all classes |
+| `by_class` | vehicles per class; `by_class[0]` or `by_class["trucks"]` |
+| `volume` | all classes in car units (vehicles times PCE), preload excluded; this drives the delays |
+| `preload` | the fixed volume passed to `assign`, or `None` |
+| `time` | travel time at the final volumes |
+| `voc` | (links only) volume plus preload over capacity |
+
+The table columns carry the same names. The tables need pandas; the numpy attributes do not. The arrays are
+read-only; copy one to change it.
+
+`print(result.summary())` gives a short account: convergence, trips per class, demand left out and the busiest link.
+
+!!! note "Renamed in 0.2.0"
+    Before 0.2.0 the result had a flat set of names (`link_flow`, `class_link_flow`, `link_table()`,
+    `path_table()`, `unrouted_flow`, ...), and `is_endpoint` and `Demand.skipped_flow` had other names. They
+    still work and raise a `DeprecationWarning` naming the replacement; they will be removed in 0.3.0. The
+    [changelog](../changelog.md) lists every old name with its replacement.
 
 ## Input reference
 
@@ -141,13 +160,13 @@ The tables need pandas; the numpy attributes do not.
 | `capacity` | vehicles per hour, positive |
 | `b`, `power` | optional; the travel time is `free_flow_time * (1 + b * (volume / capacity) ** power)`, default `b=0.15`, `power=4` |
 
-`Network.from_tables(links, turns=None, num_nodes=None, is_endpoint=None, allow_u_turns=False)` also
+`Network.from_tables(links, turns=None, num_nodes=None, is_centroid=None, allow_u_turns=False)` also
 accepts a dict of numpy arrays instead of a DataFrame.
 
 ### Zones
 
 A zone is a node: `origin` and `destination` are node ids. In networks with separate zone centroids,
-pass `is_endpoint` (a bool per node) so routes can start and end at a centroid but never pass through it.
+pass `is_centroid` (a bool per node) so routes can start and end at a centroid but never pass through it.
 Trips with `origin == destination` are skipped.
 
 ### From a TNTP file
@@ -174,17 +193,24 @@ units when there is no `config.csv`. `net.node_ids` and `net.link_ids` map back 
 ## Solver options
 
 ```python
-pyta.assign(net, classes, gap=1e-6, max_iter=200, order="fixed", seed=0, chunk_size=0, threads=None,
-            link_preload=None, turn_preload=None)
+net.assign(classes, *, gap=1e-6, max_iter=200, order=Order.FIXED, seed=0, chunk_size=0, threads=None,
+           link_preload=None, turn_preload=None, unreachable=Unreachable.ERROR)
 ```
+
+Everything after `classes` is keyword-only, so a stray positional number cannot be mistaken for another
+option. `pyta.assign(net, classes, ...)` is the same call.
 
 | argument | meaning |
 |---|---|
 | `gap` | stop at this relative gap. `1e-4` is a rough answer, `1e-6` a good one. |
 | `max_iter` | maximum number of iterations |
-| `order` | `fixed`, `shuffle`, `alternate`, `largest_gap`, `largest_demand`, `smallest_demand`. `shuffle` or `largest_gap` can be faster on large networks. |
+| `order` | an `Order`: `FIXED`, `SHUFFLE`, `ALTERNATE`, `LARGEST_GAP`, `LARGEST_DEMAND` or `SMALLEST_DEMAND`. `SHUFFLE` or `LARGEST_GAP` can be faster on large networks. |
 | `chunk_size`, `threads` | parallelism; the defaults use all cores |
 | `link_preload`, `turn_preload` | fixed background volume in car units (see [background traffic](#background-traffic)) |
+| `unreachable` | an `Unreachable`: `ERROR` (default) or `SKIP`; see [below](#demand-that-cannot-be-routed) |
+
+`order` and `unreachable` are string enums: `pyta.Order.SHUFFLE` and `"shuffle"` are the same, and a misspelt
+value raises a `ValueError` that lists the valid ones.
 
 For several time periods, call `assign` once per period with that period's demand, and scale the
 capacities to the period's length.
@@ -195,14 +221,15 @@ Bad input raises `ValueError` with the reason, such as a missing column or an un
 
 ### Demand that cannot be routed
 
-By default a trip between nodes that no allowed path joins is an error. On networks that change (closures,
-class restrictions) this can be expected; pass `unreachable="skip"` to leave those trips out and assign the rest:
+By default a trip between nodes that no allowed path joins is an error, and the message names the pairs (the
+first five, with the count and the trips they carry). On networks that change (closures, class restrictions)
+this can be expected; pass `unreachable="skip"` to leave those trips out and assign the rest:
 
 ```python
-result = pyta.assign(net, classes, unreachable="skip")
-result.unrouted_flow      # trips left out, one total per class
-result.unrouted_table()   # DataFrame: class (if several), origin, destination, flow
-result.unrouted()         # the same as numpy arrays
+result = net.assign(classes, unreachable="skip")
+result.unrouted.flow      # trips left out, one total per class
+result.unrouted.table()   # DataFrame: class (if several), origin, destination, flow
+result.unrouted.arrays()  # the same as numpy arrays
 ```
 
 Nothing else changes: link flows, paths and the gap cover only the routed demand.

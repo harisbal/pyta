@@ -3,8 +3,10 @@
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
-import pandas as pd
 from numpy.typing import NDArray
+
+from .options import Order, Unreachable
+from .results import AssignResult
 
 __version__: str
 
@@ -23,8 +25,8 @@ class Network:
         capacity: Capacity per link; must be positive.
         b: BPR ``b`` per link (default 0.15).
         power: BPR power per link (default 4).
-        is_endpoint: Bool per node. A path may start or end at an endpoint node but
-            never passes through it. Use for zone centroids.
+        is_centroid: Bool per node. A path may start or end at a centroid but never
+            passes through it. Use for zone centroids.
         turns: Optional turn table as a dict of arrays, with the columns ``from_link``
             and ``to_link`` and optionally ``banned``, ``penalty`` (NaN = none),
             ``delay_free_flow``, ``delay_capacity``, ``delay_b`` and ``delay_power``.
@@ -41,9 +43,10 @@ class Network:
         capacity: NDArray[np.float64],
         b: Optional[NDArray[np.float64]] = None,
         power: Optional[NDArray[np.float64]] = None,
-        is_endpoint: Optional[NDArray[np.bool_]] = None,
+        is_centroid: Optional[NDArray[np.bool_]] = None,
         turns: Optional[Dict[str, NDArray[Any]]] = None,
         allow_u_turns: bool = False,
+        is_endpoint: Optional[NDArray[np.bool_]] = None,
     ) -> None: ...
     @staticmethod
     def from_tables(
@@ -51,8 +54,9 @@ class Network:
         turns: Optional[Any] = None,
         *,
         num_nodes: Optional[int] = None,
-        is_endpoint: Optional[Any] = None,
+        is_centroid: Optional[Any] = None,
         allow_u_turns: bool = False,
+        is_endpoint: Optional[Any] = None,
     ) -> "Network":
         """Builds a network from flat tables (pandas DataFrames or dicts of arrays).
 
@@ -68,18 +72,19 @@ class Network:
         Turns not listed are allowed at zero cost, except U-turns unless ``allow_u_turns``.
         Use :meth:`turn_links` to see which turns exist.
 
-        ``is_endpoint`` marks nodes (e.g. zone centroids) that paths may start or end at
-        but not pass through."""
+        ``is_centroid`` marks nodes (zone centroids) that paths may start or end at but
+        not pass through. ``is_endpoint`` is the deprecated old name."""
     @staticmethod
     def from_tntp(path: str) -> "Network":
         """Reads a TNTP ``*_net.tntp`` file. Node numbers become 0-based, links keep
-        file order and ``<FIRST THRU NODE>`` becomes the endpoint mask."""
+        file order and ``<FIRST THRU NODE>`` becomes the centroid mask."""
     @staticmethod
     def from_gmns(
         path: str,
         length_unit: Optional[str] = None,
         speed_unit: Optional[str] = None,
-        zone_nodes_are_endpoints: bool = False,
+        zone_nodes_are_centroids: bool = False,
+        zone_nodes_are_endpoints: Optional[bool] = None,
     ) -> "Network":
         """Reads a GMNS dataset directory (``node.csv``, ``link.csv``, optional
         ``movement.csv`` and ``config.csv``). Times are in minutes; capacity is per
@@ -88,7 +93,8 @@ class Network:
         ``length_unit`` (e.g. ``"mile"``, ``"foot"``, ``"km"``) and ``speed_unit``
         (``"mph"``, ``"kph"``) override ``config.csv`` and are required without it. A
         movement table restricts an inbound link only if it lists a movement for it.
-        With ``zone_nodes_are_endpoints`` zone nodes cannot be passed through."""
+        With ``zone_nodes_are_centroids`` zone nodes cannot be passed through.
+        ``zone_nodes_are_endpoints`` is the deprecated old name."""
     @property
     def node_ids(self) -> Optional[List[str]]:
         """``node_id`` of every node as written in the GMNS files (None otherwise)."""
@@ -108,12 +114,30 @@ class Network:
     def capacity(self) -> NDArray[np.float64]:
         """Capacity per link."""
     @property
-    def is_endpoint(self) -> NDArray[np.bool_]:
+    def is_centroid(self) -> NDArray[np.bool_]:
         """Per node: True if paths may only start or end there."""
     def link_nodes(self) -> Tuple[NDArray[np.uint32], NDArray[np.uint32]]:
         """Returns the from-node and to-node of every link."""
     def turn_links(self) -> Tuple[NDArray[np.uint32], NDArray[np.uint32]]:
         """Returns the incoming and outgoing link of every turn, indexed by turn id."""
+    def assign(
+        self,
+        classes: Union["Demand", "TrafficClass", Sequence[Union["Demand", "TrafficClass"]]],
+        *,
+        gap: float = 1e-6,
+        max_iter: int = 200,
+        order: Union[Order, str] = Order.FIXED,
+        seed: int = 0,
+        chunk_size: int = 0,
+        threads: Optional[int] = None,
+        link_preload: Optional[NDArray[np.float64]] = None,
+        turn_preload: Optional[NDArray[np.float64]] = None,
+        unreachable: Union[Unreachable, str] = Unreachable.ERROR,
+    ) -> AssignResult:
+        """Finds the user equilibrium on this network by path-based gradient projection.
+
+        The same as ``pyta.assign(self, classes, ...)``, where all the options are
+        described. Everything after ``classes`` is keyword-only."""
 
 class Demand:
     """Trips between nodes in long format (a zone is a node).
@@ -155,9 +179,9 @@ class Demand:
         """Reads a zone-to-zone demand CSV for a network read with ``Network.from_gmns``.
         ``origin``, ``destination`` and ``flow`` name the columns. A zone's trips are
         split equally over its nodes. Rows of zones without a node are an error unless
-        ``skip_unknown_zones``, in which case they are summed in ``skipped_flow``."""
+        ``skip_unknown_zones``, in which case they are summed in ``unknown_zone_flow``."""
     @property
-    def skipped_flow(self) -> float:
+    def unknown_zone_flow(self) -> float:
         """Trips dropped because their zone has no node (0 unless read with ``from_gmns``)."""
     @property
     def num_nodes(self) -> int:
@@ -187,143 +211,40 @@ class TrafficClass:
         name: Optional[str] = None,
     ) -> None: ...
 
-class AssignResult:
-    """The outcome of :func:`assign`.
+class _RawResult:
+    """The solver's result as numpy arrays; wrapped by :class:`pyta.AssignResult`."""
 
-    The attributes are numpy arrays indexed by link or turn id. :meth:`link_table`,
-    :meth:`turn_table` and :meth:`path_table` give the same results as pandas DataFrames.
-    """
-
-    def link_table(self) -> pd.DataFrame:
-        """One row per link: ``from_node``, ``to_node``, ``flow`` (vehicles of all
-        classes), ``flow_<class>`` when there are several classes, ``volume`` (in car
-        units), ``preload`` if one was given, ``voc`` (volume plus preload over capacity)
-        and ``time``. GMNS networks also get their ``link_id``."""
-    def turn_table(self) -> pd.DataFrame:
-        """One row per turn: ``from_link``, ``to_link``, ``node``, then the same flow,
-        volume and time columns as :meth:`link_table`."""
-    def path_table(self, class_index: Optional[int] = None) -> pd.DataFrame:
-        """One row per path: ``class`` (when there are several), ``origin``,
-        ``destination``, ``flow``, ``time`` and ``links`` (a tuple of link ids).
-        ``class_index`` selects one class; by default all are included.
-
-        ``.explode("links")`` gives one row per path and link. For very large models,
-        :meth:`paths` is faster."""
-    def unrouted(self) -> Dict[str, NDArray[Any]]:
-        """Demand left out by ``unreachable="skip"`` as flat arrays: ``class`` (index),
-        ``origin``, ``destination`` and ``flow``. Empty unless trips were skipped."""
-    def unrouted_table(self) -> pd.DataFrame:
-        """One row per skipped OD pair: ``class`` (when there are several), ``origin``,
-        ``destination`` and ``flow``."""
-    @property
-    def unrouted_flow(self) -> List[float]:
-        """Trips left out by ``unreachable="skip"``, one total per class."""
-    @property
-    def network(self) -> Network:
-        """The network that was assigned."""
-    @property
-    def class_names(self) -> List[str]:
-        """One name per class: the :class:`TrafficClass` name, or its position."""
-    @property
-    def link_volume(self) -> NDArray[np.float64]:
-        """PCE-weighted volume per link."""
-    @property
-    def turn_volume(self) -> NDArray[np.float64]:
-        """PCE-weighted volume per turn."""
-    @property
-    def link_time(self) -> NDArray[np.float64]:
-        """Travel time per link at the final volumes, preload included."""
-    @property
-    def turn_time(self) -> NDArray[np.float64]:
-        """Travel time per turn: fixed penalty plus delay."""
-    @property
-    def link_flow(self) -> NDArray[np.float64]:
-        """Vehicles of the first class per link."""
-    @property
-    def turn_flow(self) -> NDArray[np.float64]:
-        """Vehicles of the first class per turn."""
-    @property
-    def class_link_flow(self) -> List[NDArray[np.float64]]:
-        """Vehicles per link, one array per class."""
-    @property
-    def class_turn_flow(self) -> List[NDArray[np.float64]]:
-        """Vehicles per turn, one array per class."""
-    @property
-    def link_preload(self) -> Optional[NDArray[np.float64]]:
-        """The ``link_preload`` passed to :func:`assign`, or None."""
-    @property
-    def turn_preload(self) -> Optional[NDArray[np.float64]]:
-        """The ``turn_preload`` passed to :func:`assign`, or None."""
-    @property
-    def relative_gap(self) -> float:
-        """Exact relative gap of the final flows."""
-    @property
-    def iterations(self) -> int:
-        """Number of sweeps performed."""
-    @property
-    def converged(self) -> bool:
-        """Whether the gap target was reached."""
-    @property
-    def sweep_gaps(self) -> NDArray[np.float64]:
-        """Cheap gap estimate measured during each sweep."""
-    @property
-    def times(self) -> Dict[str, float]:
-        """Seconds per phase: ``initial_assignment``, ``shortest_paths``, ``flow_updates``,
-        ``sweep_rebuild`` and ``gap_checks``."""
-    @property
-    def objective(self) -> Optional[float]:
-        """Beckmann objective; ``None`` unless there is one class with PCE 1."""
-    def paths(self, class_index: int = 0) -> Dict[str, NDArray[Any]]:
-        """Returns every path of a class as flat arrays.
-
-        The dict has ``origin``, ``destination``, ``flow`` and ``time`` (one entry per
-        path), ``link_offsets`` (one more entry) and ``links`` (all link ids back to
-        back). Path ``i`` uses ``links[link_offsets[i]:link_offsets[i + 1]]``.
-
-        Raises:
-            IndexError: If the class does not exist.
-        """
+    network: Network
+    class_names: List[str]
+    link_volume: NDArray[np.float64]
+    turn_volume: NDArray[np.float64]
+    link_time: NDArray[np.float64]
+    turn_time: NDArray[np.float64]
+    link_preload: Optional[NDArray[np.float64]]
+    turn_preload: Optional[NDArray[np.float64]]
+    class_link_flow: List[NDArray[np.float64]]
+    class_turn_flow: List[NDArray[np.float64]]
+    relative_gap: float
+    iterations: int
+    converged: bool
+    sweep_gaps: NDArray[np.float64]
+    times: Dict[str, float]
+    objective: Optional[float]
+    unrouted_flow: List[float]
+    def paths(self, class_index: int = 0) -> Dict[str, NDArray[Any]]: ...
+    def unrouted(self) -> Dict[str, NDArray[Any]]: ...
 
 def assign(
     network: Network,
-    classes: Union[Demand, TrafficClass, Sequence[Union[Demand, TrafficClass]]],
-    gap: float = 1e-6,
-    max_iter: int = 200,
-    order: str = "fixed",
-    seed: int = 0,
-    chunk_size: int = 0,
-    threads: Optional[int] = None,
-    link_preload: Optional[NDArray[np.float64]] = None,
-    turn_preload: Optional[NDArray[np.float64]] = None,
-    unreachable: str = "error",
-) -> AssignResult:
-    """Finds the user equilibrium by path-based gradient projection.
-
-    Args:
-        network: The network.
-        classes: A :class:`Demand`, a :class:`TrafficClass`, or a list of them.
-        gap: Stop when the relative gap is at or below this.
-        max_iter: Maximum number of sweeps over all origins.
-        order: Origin order per sweep: ``fixed``, ``shuffle``, ``alternate``,
-            ``largest_gap``, ``largest_demand`` or ``smallest_demand``.
-        seed: Seed for ``shuffle``.
-        chunk_size: Origins whose shortest paths are searched in parallel before their
-            flow shifts are applied one at a time. ``0`` picks about 1/32 of the origins
-            (between 1 and 64); ``1`` is the plain sequential sweep. Results do not
-            depend on the number of threads.
-        threads: Number of threads for the parallel parts (default: all cores, or
-            ``RAYON_NUM_THREADS``).
-        link_preload: Fixed volume per link in car units, such as buses or through
-            traffic, that is not assigned but adds to the volume the delays see.
-        turn_preload: The same per turn.
-        unreachable: What to do with demand between nodes that no allowed path joins.
-            ``"error"`` raises; ``"skip"`` leaves those trips out, assigns the rest and
-            reports them in :meth:`AssignResult.unrouted_flow`,
-            :meth:`AssignResult.unrouted` and :meth:`AssignResult.unrouted_table`.
-
-    Returns:
-        The flows, paths and convergence information.
-
-    Raises:
-        ValueError: For malformed input or demand that cannot be routed.
-    """
+    classes: Any,
+    *,
+    gap: float = ...,
+    max_iter: int = ...,
+    order: str = ...,
+    seed: int = ...,
+    chunk_size: int = ...,
+    threads: Optional[int] = ...,
+    link_preload: Optional[NDArray[np.float64]] = ...,
+    turn_preload: Optional[NDArray[np.float64]] = ...,
+    unreachable: str = ...,
+) -> _RawResult: ...
