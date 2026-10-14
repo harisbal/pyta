@@ -293,6 +293,66 @@ def test_unreachable_demand_is_an_error():
         pyta.assign(net, demand)
 
 
+def two_zone_network():
+    # 0 -> 1 -> 2; node 3 is isolated and nothing leaves node 2.
+    return pyta.Network.from_tables({"from_node": [0, 1], "to_node": [1, 2],
+                                     "free_flow_time": [1.0, 1.0], "capacity": [100.0, 100.0]},
+                                    num_nodes=4)
+
+
+def test_skip_unreachable_assigns_the_rest_and_reports_the_rest():
+    net = two_zone_network()
+    trips = {"origin": [0, 2, 0], "destination": [2, 0, 3], "flow": [10.0, 4.0, 1.5]}
+    demand = pyta.Demand.from_table(net, trips)
+    result = pyta.assign(net, demand, unreachable="skip")
+    assert result.converged
+    assert result.link_flow.tolist() == [10.0, 10.0]
+    assert result.unrouted_flow == [5.5]
+    table = result.unrouted_table().sort_values("origin").reset_index(drop=True)
+    assert table.to_dict("list") == {"origin": [0, 2], "destination": [3, 0], "flow": [1.5, 4.0]}
+
+
+def test_skip_unreachable_reports_per_class_and_honours_allowed_links():
+    net = two_zone_network()
+    demand = pyta.Demand.from_table(net, {"origin": [0], "destination": [2], "flow": [3.0]})
+    cars = pyta.TrafficClass(demand, name="cars")
+    trucks = pyta.TrafficClass(demand, name="trucks", allowed_links=np.array([True, False]))
+    result = pyta.assign(net, [cars, trucks], unreachable="skip")
+    assert result.unrouted_flow == [0.0, 3.0]
+    assert result.class_link_flow[0].tolist() == [3.0, 3.0]
+    assert result.class_link_flow[1].tolist() == [0.0, 0.0]
+    table = result.unrouted_table()
+    assert table["class"].tolist() == ["trucks"]
+    with pytest.raises(ValueError, match="Unreachable"):
+        pyta.assign(net, [cars, trucks])
+
+
+def test_skip_unreachable_with_nothing_left_to_route():
+    net = two_zone_network()
+    demand = pyta.Demand.from_table(net, {"origin": [2], "destination": [0], "flow": [4.0]})
+    result = pyta.assign(net, demand, unreachable="skip")
+    assert result.converged
+    assert result.link_flow.tolist() == [0.0, 0.0]
+    assert result.unrouted_flow == [4.0]
+
+
+def test_skip_unreachable_changes_nothing_when_all_demand_is_routable():
+    net = two_zone_network()
+    demand = pyta.Demand.from_table(net, {"origin": [0], "destination": [2], "flow": [10.0]})
+    plain = pyta.assign(net, demand)
+    skipped = pyta.assign(net, demand, unreachable="skip")
+    assert skipped.link_flow.tolist() == plain.link_flow.tolist()
+    assert skipped.unrouted_flow == [0.0]
+    assert len(skipped.unrouted_table()) == 0
+
+
+def test_unreachable_option_is_validated():
+    net = two_zone_network()
+    demand = pyta.Demand.from_table(net, {"origin": [0], "destination": [2], "flow": [1.0]})
+    with pytest.raises(ValueError, match="unreachable must be"):
+        pyta.assign(net, demand, unreachable="ignore")
+
+
 # ------------------------------------------------------------------ GMNS
 
 

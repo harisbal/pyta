@@ -124,6 +124,29 @@ impl OdDemand {
     pub fn total(&self) -> f64 {
         self.flows.iter().sum()
     }
+
+    /// A copy holding only the pairs for which `keep(origin, destination)` is true.
+    pub fn retain(&self, keep: impl Fn(u32, u32) -> bool) -> OdDemand {
+        let num_nodes = self.num_nodes();
+        let mut offsets = Vec::with_capacity(num_nodes + 1);
+        let (mut destinations, mut flows) = (Vec::new(), Vec::new());
+        offsets.push(0);
+        for origin in 0..num_nodes as u32 {
+            let (dests, qs) = self.from_origin(origin);
+            for (&d, &q) in dests.iter().zip(qs) {
+                if keep(origin, d) {
+                    destinations.push(d);
+                    flows.push(q);
+                }
+            }
+            offsets.push(destinations.len());
+        }
+        OdDemand {
+            offsets,
+            destinations,
+            flows,
+        }
+    }
 }
 
 /// Link and turn flows from an assignment.
@@ -188,6 +211,18 @@ pub fn all_or_nothing(
 mod tests {
     use super::*;
     use crate::{Edge, TurnException, TurnOptions, TurnRule};
+
+    #[test]
+    fn retain_keeps_the_selected_pairs_in_order() {
+        let demand =
+            OdDemand::from_triples(3, &[0, 0, 2, 1], &[1, 2, 0, 2], &[1.0, 2.0, 3.0, 4.0]).unwrap();
+        let kept = demand.retain(|o, d| (o, d) != (0, 2));
+        assert_eq!(kept.num_nodes(), 3);
+        assert_eq!(kept.from_origin(0), (&[1u32][..], &[1.0][..]));
+        assert_eq!(kept.from_origin(1), (&[2u32][..], &[4.0][..]));
+        assert_eq!(kept.from_origin(2), (&[0u32][..], &[3.0][..]));
+        assert_eq!(kept.total(), 8.0);
+    }
 
     // A=0 X=1 J=2 K=3. 0: A->J (5), 1: A->X (3), 2: X->J (3), 3: J->K (1).
     fn graph() -> Network {

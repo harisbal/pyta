@@ -1,7 +1,7 @@
 //! Python bindings for PyTA. The Rust types here are thin wrappers; the friendly
 //! Python API (DataFrame handling, docstrings) lives in `python/pyta/__init__.py`.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 
 use numpy::{IntoPyArray, PyArray1, PyReadonlyArray1};
@@ -581,6 +581,8 @@ struct AssignResult {
     sweep_gaps: Vec<f64>,
     objective: Option<f64>,
     times: core::PhaseTimes,
+    /// Demand dropped by `unreachable="skip"`.
+    unrouted: Vec<core::Unrouted>,
 }
 
 impl AssignResult {
@@ -751,6 +753,35 @@ impl AssignResult {
         Ok(out)
     }
 
+    /// Trips per class that `unreachable="skip"` left out because no allowed path joins
+    /// their origin and destination.
+    #[getter]
+    fn unrouted_flow(&self) -> Vec<f64> {
+        let mut totals = vec![0.0; self.classes.len()];
+        for u in &self.unrouted {
+            totals[u.class] += u.flow;
+        }
+        totals
+    }
+
+    /// The dropped demand as flat arrays: `class` (index), `origin`, `destination`, `flow`.
+    fn unrouted<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
+        let out = PyDict::new(py);
+        let class: Vec<i64> = self.unrouted.iter().map(|u| u.class as i64).collect();
+        let origin: Vec<i64> = self.unrouted.iter().map(|u| i64::from(u.origin)).collect();
+        let dest: Vec<i64> = self
+            .unrouted
+            .iter()
+            .map(|u| i64::from(u.destination))
+            .collect();
+        let flow: Vec<f64> = self.unrouted.iter().map(|u| u.flow).collect();
+        out.set_item("class", class.into_pyarray(py))?;
+        out.set_item("origin", origin.into_pyarray(py))?;
+        out.set_item("destination", dest.into_pyarray(py))?;
+        out.set_item("flow", flow.into_pyarray(py))?;
+        Ok(out)
+    }
+
     fn __repr__(&self) -> String {
         format!(
             "AssignResult(converged={}, iterations={}, relative_gap={:.3e}, classes={})",
@@ -805,7 +836,7 @@ fn extract_class(item: &Bound<'_, PyAny>) -> PyResult<Py<TrafficClass>> {
 
 #[pyfunction]
 #[allow(clippy::too_many_arguments)]
-#[pyo3(signature = (network, classes, gap=1e-6, max_iter=200, order="fixed", seed=0, chunk_size=0, threads=None, link_preload=None, turn_preload=None))]
+#[pyo3(signature = (network, classes, gap=1e-6, max_iter=200, order="fixed", seed=0, chunk_size=0, threads=None, link_preload=None, turn_preload=None, unreachable="error"))]
 fn assign(
     py: Python<'_>,
     network: Py<Network>,
@@ -818,7 +849,17 @@ fn assign(
     threads: Option<usize>,
     link_preload: Option<PyReadonlyArray1<'_, f64>>,
     turn_preload: Option<PyReadonlyArray1<'_, f64>>,
+    unreachable: &str,
 ) -> PyResult<AssignResult> {
+    let skip_unreachable = match unreachable {
+        "error" => false,
+        "skip" => true,
+        other => {
+            return Err(msg(format!(
+                "unreachable must be 'error' or 'skip', not '{other}'"
+            )));
+        }
+    };
     let items: Vec<Bound<'_, PyAny>> = match classes.cast::<PyList>() {
         Ok(list) => list.iter().collect(),
         Err(_) => vec![classes.clone()],
@@ -840,7 +881,7 @@ fn assign(
         .map(|(k, c)| c.name.clone().unwrap_or_else(|| k.to_string()))
         .collect();
 
-    let specs: Vec<core::ClassSpec<'_>> = class_refs
+    let base_specs: Vec<core::ClassSpec<'_>> = class_refs
         .iter()
         .zip(&demand_refs)
         .map(|(class, demand)| core::ClassSpec {
@@ -857,6 +898,39 @@ fn assign(
     let net: &Network = &net_ref;
     let link_preload = preload(link_preload, net.network.num_links(), "link_preload")?;
     let turn_preload = preload(turn_preload, net.turns.num_turns(), "turn_preload")?;
+
+    let unrouted = if skip_unreachable {
+        let find = || core::find_unrouted(&net.network, &net.turns, &base_specs);
+        py.detach(|| match &pool {
+            Some(pool) => pool.install(find),
+            None => find(),
+        })
+        .map_err(err)?
+    } else {
+        Vec::new()
+    };
+    let routable: Vec<Option<core::OdDemand>> = (0..base_specs.len())
+        .map(|k| {
+            let dropped: HashSet<(u32, u32)> = unrouted
+                .iter()
+                .filter(|u| u.class == k)
+                .map(|u| (u.origin, u.destination))
+                .collect();
+            (!dropped.is_empty()).then(|| {
+                base_specs[k]
+                    .demand
+                    .retain(|o, d| !dropped.contains(&(o, d)))
+            })
+        })
+        .collect();
+    let specs: Vec<core::ClassSpec<'_>> = base_specs
+        .iter()
+        .zip(&routable)
+        .map(|(spec, kept)| core::ClassSpec {
+            demand: kept.as_ref().unwrap_or(spec.demand),
+            ..*spec
+        })
+        .collect();
 
     let solved = if link_preload.is_none() && turn_preload.is_none() {
         solve(
@@ -903,6 +977,7 @@ fn assign(
         sweep_gaps: solved.result.sweep_gaps,
         objective: (specs.len() == 1 && specs[0].pce == 1.0).then_some(solved.objective),
         times: solved.result.times,
+        unrouted,
     })
 }
 

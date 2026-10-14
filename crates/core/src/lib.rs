@@ -28,7 +28,7 @@ pub use frank_wolfe::{
 };
 pub use gradient_projection::{
     ClassResult, ClassSpec, GradientProjectionOptions, GradientProjectionResult, MultiClassResult,
-    PhaseTimes, gradient_projection, gradient_projection_multiclass,
+    PhaseTimes, Unrouted, find_unrouted, gradient_projection, gradient_projection_multiclass,
     gradient_projection_with_turn_delays,
 };
 pub use network::{Edge, Network, NetworkError};

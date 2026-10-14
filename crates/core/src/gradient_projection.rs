@@ -745,6 +745,73 @@ fn validate_classes(network: &Network, classes: &[ClassSpec]) -> Result<(), Solv
     Ok(())
 }
 
+/// Demand between two nodes that its class has no allowed path between.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Unrouted {
+    /// Index of the class.
+    pub class: usize,
+    pub origin: u32,
+    pub destination: u32,
+    pub flow: f64,
+}
+
+/// Lists the demand of every class that cannot be routed, ordered by origin, then class.
+///
+/// Whether a path exists does not depend on link costs, so one search per origin and class
+/// answers it for the whole solve. Passing `classes` with this demand removed to
+/// [`gradient_projection_multiclass`] cannot fail with
+/// [`SolverError::ClassUnreachable`]. Trips with `origin == destination` and zero flows
+/// are never listed.
+pub fn find_unrouted(
+    network: &Network,
+    turns: &TurnTable,
+    classes: &[ClassSpec],
+) -> Result<Vec<Unrouted>, SolverError> {
+    validate_classes(network, classes)?;
+    let class_costs: Vec<Vec<f64>> = classes
+        .iter()
+        .map(|c| {
+            (0..network.num_links())
+                .map(|l| c.link_cost(l, 1.0))
+                .collect()
+        })
+        .collect();
+    let turn_cost = vec![0.0; turns.num_turns()];
+    let per_origin: Vec<Vec<Unrouted>> = (0..network.num_nodes() as u32)
+        .into_par_iter()
+        .map_init(
+            || (TurnSearch::new(network), Vec::new()),
+            |(search, path), origin| {
+                let mut found = Vec::new();
+                for (k, class) in classes.iter().enumerate() {
+                    let (destinations, quantities) = class.demand.from_origin(origin);
+                    let mut searched = false;
+                    for (&destination, &flow) in destinations.iter().zip(quantities) {
+                        if destination == origin || flow == 0.0 {
+                            continue;
+                        }
+                        if !searched {
+                            search.run(network, turns, &class_costs[k], &turn_cost, origin);
+                            searched = true;
+                        }
+                        if !search.path_into(destination, path) {
+                            found.push(Unrouted {
+                                class: k,
+                                origin,
+                                destination,
+                                flow,
+                            });
+                        }
+                    }
+                }
+                found.sort_by_key(|u| u.class);
+                found
+            },
+        )
+        .collect();
+    Ok(per_origin.into_iter().flatten().collect())
+}
+
 /// Gradient projection with link delays and fixed turn penalties only, one class.
 pub fn gradient_projection<V: Vdf>(
     network: &Network,
@@ -1519,6 +1586,39 @@ mod tests {
             let total: f64 = r.classes[k].link_flow.iter().sum();
             assert!((total - want).abs() < 1e-8, "class {k} carries {total}");
         }
+    }
+
+    #[test]
+    fn find_unrouted_lists_demand_without_an_allowed_path() {
+        // Both links run 0 -> 1, so 1 -> 0 has no path; class B may use neither link.
+        let (net, turns, vdf) = two_links();
+        let a_demand = od(2, &[(0, 1, 5.0), (1, 0, 2.0), (0, 0, 9.0)]);
+        let b_demand = od(2, &[(0, 1, 3.0)]);
+        let none = [false, false];
+        let a = ClassSpec::new(&a_demand);
+        let b = ClassSpec {
+            allowed_links: Some(&none),
+            ..ClassSpec::new(&b_demand)
+        };
+        let unrouted = find_unrouted(&net, &turns, &[a, b]).unwrap();
+        let want = |class, origin, destination, flow| Unrouted {
+            class,
+            origin,
+            destination,
+            flow,
+        };
+        assert_eq!(unrouted, vec![want(1, 0, 1, 3.0), want(0, 1, 0, 2.0)]);
+
+        let a_kept = a_demand.retain(|o, d| (o, d) != (1, 0));
+        let b_kept = b_demand.retain(|_, _| false);
+        let r = multiclass(
+            &net,
+            &turns,
+            &vdf,
+            &[ClassSpec::new(&a_kept), ClassSpec::new(&b_kept)],
+        );
+        assert!(r.converged);
+        assert!((r.link_volume.iter().sum::<f64>() - 5.0).abs() < 1e-8);
     }
 
     #[test]
