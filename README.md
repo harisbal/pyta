@@ -181,7 +181,7 @@ publish a GitHub release.
 If you use PyTraf in your research, please cite it as below (GitHub's "Cite this repository" button gives
 the same from [`CITATION.cff`](https://github.com/harisbal/pytraf/blob/main/CITATION.cff)):
 
-> Ballis, H. (2026). *PyTraf: Path-based static traffic assignment* (Version 0.3.0)
+> Ballis, H. (2026). *PyTraf: Path-based static traffic assignment* (Version 0.3.1)
 > [Computer software]. https://github.com/harisbal/pytraf
 
 ```bibtex
@@ -189,7 +189,7 @@ the same from [`CITATION.cff`](https://github.com/harisbal/pytraf/blob/main/CITA
   author  = {Ballis, Haris},
   title   = {{PyTraf}: Path-based static traffic assignment},
   year    = {2026},
-  version = {0.3.0},
+  version = {0.3.1},
   url     = {https://github.com/harisbal/pytraf}
 }
 ```
