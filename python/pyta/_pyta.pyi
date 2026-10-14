@@ -209,6 +209,15 @@ class AssignResult:
 
         ``.explode("links")`` gives one row per path and link. For very large models,
         :meth:`paths` is faster."""
+    def unrouted(self) -> Dict[str, NDArray[Any]]:
+        """Demand left out by ``unreachable="skip"`` as flat arrays: ``class`` (index),
+        ``origin``, ``destination`` and ``flow``. Empty unless trips were skipped."""
+    def unrouted_table(self) -> pd.DataFrame:
+        """One row per skipped OD pair: ``class`` (when there are several), ``origin``,
+        ``destination`` and ``flow``."""
+    @property
+    def unrouted_flow(self) -> List[float]:
+        """Trips left out by ``unreachable="skip"``, one total per class."""
     @property
     def network(self) -> Network:
         """The network that was assigned."""
@@ -286,6 +295,7 @@ def assign(
     threads: Optional[int] = None,
     link_preload: Optional[NDArray[np.float64]] = None,
     turn_preload: Optional[NDArray[np.float64]] = None,
+    unreachable: str = "error",
 ) -> AssignResult:
     """Finds the user equilibrium by path-based gradient projection.
 
@@ -306,6 +316,10 @@ def assign(
         link_preload: Fixed volume per link in car units, such as buses or through
             traffic, that is not assigned but adds to the volume the delays see.
         turn_preload: The same per turn.
+        unreachable: What to do with demand between nodes that no allowed path joins.
+            ``"error"`` raises; ``"skip"`` leaves those trips out, assigns the rest and
+            reports them in :meth:`AssignResult.unrouted_flow`,
+            :meth:`AssignResult.unrouted` and :meth:`AssignResult.unrouted_table`.
 
     Returns:
         The flows, paths and convergence information.

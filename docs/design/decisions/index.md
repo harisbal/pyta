@@ -15,3 +15,4 @@ Short notes on the choices that shaped PyTA, with the reason for each.
 | [0009](0009-gmns-input.md) | GMNS input: zones span nodes, movements restrict listed links |
 | [0010](0010-time-periods.md) | Time periods: unfinished trips preload the next period (superseded) |
 | [0011](0011-explicit-preloads.md) | Explicit preloads instead of carried-over trips |
+| [0012](0012-skip-unreachable-demand.md) | Unreachable demand: an error by default, skipped on request |

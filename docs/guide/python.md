@@ -192,3 +192,17 @@ capacities to the period's length.
 The call releases the GIL, and the result does not depend on the number of threads.
 
 Bad input raises `ValueError` with the reason, such as a missing column or an unreachable destination.
+
+### Demand that cannot be routed
+
+By default a trip between nodes that no allowed path joins is an error. On networks that change (closures,
+class restrictions) this can be expected; pass `unreachable="skip"` to leave those trips out and assign the rest:
+
+```python
+result = pyta.assign(net, classes, unreachable="skip")
+result.unrouted_flow      # trips left out, one total per class
+result.unrouted_table()   # DataFrame: class (if several), origin, destination, flow
+result.unrouted()         # the same as numpy arrays
+```
+
+Nothing else changes: link flows, paths and the gap cover only the routed demand.

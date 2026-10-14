@@ -163,6 +163,16 @@ def _path_table(result: AssignResult, class_index: Optional[int] = None) -> Any:
     return table
 
 
+def _unrouted_table(result: AssignResult) -> Any:
+    """Implements `AssignResult.unrouted_table`; documented in the type stubs."""
+    u = result.unrouted()
+    names = result.class_names
+    columns = {"origin": u["origin"], "destination": u["destination"], "flow": u["flow"]}
+    if len(names) > 1:
+        columns = {"class": [names[k] for k in u["class"]], **columns}
+    return _pandas().DataFrame(columns)
+
+
 # The table helpers live here because they handle DataFrames; attach them to the
 # extension classes so they sit next to `from_tntp` and `from_gmns`.
 Network.from_tables = staticmethod(_network_from_tables)
@@ -170,3 +180,4 @@ Demand.from_table = staticmethod(_demand_from_table)
 AssignResult.link_table = _link_table
 AssignResult.turn_table = _turn_table
 AssignResult.path_table = _path_table
+AssignResult.unrouted_table = _unrouted_table
