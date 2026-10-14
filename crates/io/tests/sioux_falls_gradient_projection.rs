@@ -125,7 +125,7 @@ fn path_flows_are_consistent_with_demand_and_link_flows() {
         for w in links.windows(2) {
             assert_eq!(net.to_node(w[0]), net.from_node(w[1]));
         }
-        for &a in links {
+        for &a in &links {
             link_flow[a as usize] += flow;
         }
     }

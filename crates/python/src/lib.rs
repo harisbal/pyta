@@ -527,7 +527,7 @@ impl AssignResult {
             origin.push(o);
             dest.push(d);
             flow.push(f);
-            links.extend_from_slice(path_links);
+            links.extend_from_slice(&path_links);
             offsets.push(links.len() as i64);
         }
         let out = PyDict::new(py);

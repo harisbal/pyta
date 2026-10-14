@@ -20,7 +20,7 @@
 use std::time::Instant;
 
 use crate::order::{OriginOrder, OriginSequencer};
-use crate::path_store::{OriginPaths, PathRef, PathStore};
+use crate::path_store::{OriginPaths, PathStore, Stretch};
 use rayon::prelude::*;
 
 use crate::{AssignmentError, Network, NoDelay, OdDemand, SolverError, TurnSearch, TurnTable, Vdf};
@@ -219,22 +219,6 @@ impl<V: Vdf, T: Vdf> State<'_, V, T> {
     }
 }
 
-/// Drops the longest common prefix and the longest common suffix of `a` and `b`, returning
-/// what is left of each. Two paths of one OD pair usually share both ends, so what remains
-/// is the stretch where they actually differ.
-fn trim_common<'a>(a: &'a [u32], b: &'a [u32]) -> (&'a [u32], &'a [u32]) {
-    let n = a.len().min(b.len());
-    let mut prefix = 0;
-    while prefix < n && a[prefix] == b[prefix] {
-        prefix += 1;
-    }
-    let mut suffix = 0;
-    while suffix < n - prefix && a[a.len() - 1 - suffix] == b[b.len() - 1 - suffix] {
-        suffix += 1;
-    }
-    (&a[prefix..a.len() - suffix], &b[prefix..b.len() - suffix])
-}
-
 /// A set of ids that can be cleared in O(1) by bumping a stamp.
 struct Marker {
     stamp: Vec<u32>,
@@ -320,6 +304,11 @@ impl KindWork {
 
 struct Work {
     path_cost: Vec<f64>,
+    /// Where the path being looked at and the one it is compared with differ.
+    mine: Stretch,
+    other: Stretch,
+    /// The two path ends `mine` and `other` currently describe; `u32::MAX` when unset.
+    compared: (u32, u32),
     links: KindWork,
     turns: KindWork,
 }
@@ -370,34 +359,27 @@ fn equilibrate_od<V: Vdf, T: Vdf>(
     work: &mut Work,
 ) -> f64 {
     let pce = state.classes[class].pce;
-    let OriginPaths {
-        links: link_arena,
-        turns: turn_arena,
-        ods,
-        ..
-    } = block;
+    let OriginPaths { tree, ods } = block;
     let paths = &mut ods[od].paths;
     if paths.len() == 1 {
         return 0.0;
     }
-    let links_of = |p: &PathRef| &link_arena[p.start as usize..(p.start + p.len) as usize];
-    let turns_of = |p: &PathRef| {
-        let end = p.turn_start + p.len.saturating_sub(1);
-        &turn_arena[p.turn_start as usize..end as usize]
-    };
 
     // Cost of each path minus the reference path's, from the differing stretches only.
-    let (ref_links, ref_turns) = (links_of(&paths[reference]), turns_of(&paths[reference]));
+    let reference_leaf = paths[reference].leaf;
+    work.compared = (u32::MAX, u32::MAX);
     work.path_cost.clear();
     for (i, p) in paths.iter().enumerate() {
         if i == reference {
             work.path_cost.push(0.0);
             continue;
         }
-        let (links, ref_l) = trim_common(links_of(p), ref_links);
-        let (turns, ref_t) = trim_common(turns_of(p), ref_turns);
+        tree.differing(p.leaf, reference_leaf, &mut work.mine, &mut work.other);
+        work.compared = (p.leaf, reference_leaf);
+        let (mine, other) = (&work.mine, &work.other);
         work.path_cost.push(
-            state.segment_cost(class, links, turns) - state.segment_cost(class, ref_l, ref_t),
+            state.segment_cost(class, &mine.links, &mine.turns)
+                - state.segment_cost(class, &other.links, &other.turns),
         );
     }
     let cheapest = (0..paths.len())
@@ -410,7 +392,7 @@ fn equilibrate_od<V: Vdf, T: Vdf>(
         .map(|(p, &cost)| p.flow * (cost - base))
         .sum();
 
-    let (cheap_links, cheap_turns) = (links_of(&paths[cheapest]), turns_of(&paths[cheapest]));
+    let cheapest_leaf = paths[cheapest].leaf;
     work.links.touched.clear();
     work.turns.touched.clear();
 
@@ -421,8 +403,13 @@ fn equilibrate_od<V: Vdf, T: Vdf>(
             continue;
         }
         // Only the stretches where this path and the cheapest differ matter.
-        let (links, cheap_l) = trim_common(links_of(path), cheap_links);
-        let (turns, cheap_t) = trim_common(turns_of(path), cheap_turns);
+        // The usual two-path OD pair compares the same two paths here as in the pricing pass.
+        if work.compared != (path.leaf, cheapest_leaf) {
+            tree.differing(path.leaf, cheapest_leaf, &mut work.mine, &mut work.other);
+            work.compared = (path.leaf, cheapest_leaf);
+        }
+        let (links, turns) = (&work.mine.links[..], &work.mine.turns[..]);
+        let (cheap_l, cheap_t) = (&work.other.links[..], &work.other.turns[..]);
         // Until the first shift, costs are exactly what the pricing pass above saw, so its
         // result is reused. After a shift, price both stretches afresh: shifting several
         // paths from one cost snapshot overshoots when they load the same links.
@@ -516,14 +503,7 @@ fn recompute_flows(
     for ((store, class), flows) in stores.iter().zip(classes).zip(class_flows.iter_mut()) {
         flows.link.fill(0.0);
         flows.turn.fill(0.0);
-        for (_, _, path_links, path_turns, path_flow) in store.iter_with_turns() {
-            for &a in path_links {
-                flows.link[a as usize] += path_flow;
-            }
-            for &t in path_turns {
-                flows.turn[t as usize] += path_flow;
-            }
-        }
+        store.add_flows(&mut flows.link, &mut flows.turn);
         for (volume, &flow) in links.iter_mut().zip(&flows.link) {
             *volume += class.pce * flow;
         }
@@ -567,24 +547,16 @@ fn exact_gap<V: Vdf, T: Vdf>(
             || TurnSearch::new(network),
             |search, origin| {
                 let (mut current, mut shortest) = (0.0, 0.0);
+                let mut step_cost = Vec::new();
                 for (k, store) in stores.iter().enumerate() {
                     let block = &store.origins[origin];
                     if block.ods.is_empty() {
                         continue;
                     }
+                    block.step_costs_into(&class_costs[k], turn_cost, &mut step_cost);
                     for od in &block.ods {
                         for path in &od.paths {
-                            let link_cost: f64 = block
-                                .path_links(path)
-                                .iter()
-                                .map(|&a| class_costs[k][a as usize])
-                                .sum();
-                            let turn_part: f64 = block
-                                .path_turns(path)
-                                .iter()
-                                .map(|&t| turn_cost[t as usize])
-                                .sum();
-                            current += path.flow * (link_cost + turn_part);
+                            current += path.flow * step_cost[path.leaf as usize];
                         }
                     }
                     search.run(network, table, &class_costs[k], turn_cost, origin as u32);
@@ -923,6 +895,9 @@ pub fn gradient_projection_multiclass<V: Vdf, T: Vdf>(
     let mut sequencer = OriginSequencer::new(options.origin_order, nn, origin_demand);
     let mut work = Work {
         path_cost: Vec::new(),
+        mine: Stretch::default(),
+        other: Stretch::default(),
+        compared: (u32::MAX, u32::MAX),
         links: KindWork::new(nl),
         turns: KindWork::new(nt),
     };
@@ -1176,7 +1151,7 @@ mod tests {
                 assert_eq!(turns.to_link(t as usize), links[i + 1]);
                 turn_flow[t as usize] += flow;
             }
-            for &a in links {
+            for &a in &links {
                 link_flow[a as usize] += flow;
             }
         }
