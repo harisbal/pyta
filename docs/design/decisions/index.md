@@ -11,3 +11,4 @@ Short notes on the choices that shaped PyTA, with the reason for each.
 | [0005](0005-python-api.md) | Python API conventions |
 | [0006](0006-frank-wolfe-reference.md) | Frank-Wolfe stays a reference solver |
 | [0007](0007-parallel-sweeps.md) | Parallel sweeps and the hot path |
+| [0008](0008-path-tree.md) | Paths as a tree of steps, per origin |

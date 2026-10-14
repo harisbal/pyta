@@ -6,15 +6,16 @@
 - **Separable delays.** A turn's delay depends on its own volume. Interacting junction models (signals,
   gap acceptance, roundabouts) make the cost Jacobian asymmetric and are not implemented.
 - **Multi-class has no objective** (asymmetric when PCEs differ) and is gradient projection only.
-- **Path memory** grows as zones² × paths per OD × path length. A 5 000-zone model can need tens of
-  gigabytes of link ids; the path store is isolated behind one module so it can be compressed.
+- **Path memory** grows as zones² × paths per OD × (the part of a path not shared with others from the
+  same origin). The path tree keeps Chicago Regional (2.3 M OD pairs) at about 1.3 GB, but a 5 000-zone
+  model can still need many gigabytes.
 - **Partly parallel.** Shortest-path searches, the initial assignment and gap checks use all cores; the flow shifts are sequential by design (Gauss-Seidel).
 
 ## Planned
 
 | item | notes |
 |---|---|
-| Path memory | store only a first link plus turn ids per path (roughly halves path memory), and later bush-based storage; Sydney (3 264 zones) and Austin (7 388 zones) need it |
+| Path memory | the per-OD bookkeeping (a vector of paths per OD pair) now makes up a large share of what is left; Sydney (3 264 zones) and Austin (7 388 zones) are untested and may need bush-based storage |
 | Faster flow updates | the remaining bottleneck on large networks (about 40% of the time on Chicago Regional) |
 | GMNS input | the `movement` table maps onto the turn table |
 | OpenStreetMap networks | download and conversion belong in the Python layer (osm2gmns or osmnx), producing GMNS or flat tables |

@@ -29,7 +29,7 @@ formats live in `pyta-io`; the bindings convert numpy arrays into core types and
 | `shortest_path` | node-based `dijkstra`; turn-aware `dijkstra_turns` with link labels |
 | `assignment` | `OdDemand`, all-or-nothing loading, shared `SolverError` |
 | `frank_wolfe` | reference solver, with turn costs |
-| `path_store` | per-origin arenas of link ids and turn ids; per-OD path sets |
+| `path_store` | per-origin tree of path steps; per-OD path sets |
 | `order` | origin order for Gauss-Seidel sweeps |
 | `gradient_projection` | the main solver, single and multi-class |
 
@@ -37,8 +37,9 @@ formats live in `pyta-io`; the bindings convert numpy arrays into core types and
 
 - **Structure of arrays.** Topology is fixed; costs and flows are separate `Vec<f64>` indexed by link
   id (or turn id), per class where needed. Nothing is mutated inside the graph.
-- **Paths.** A path is a range in a per-origin arena of `u32` link ids, with a parallel arena of
-  turn ids. An OD pair holds a few paths, so duplicates are found by a scan.
+- **Paths.** Each origin keeps a tree of steps (arrive on a link, coming from a parent step); a path is
+  the step where it ends plus its flow, so paths that start alike share storage
+  ([decision 0008](decisions/0008-path-tree.md)). An OD pair holds a few paths, found by comparing step ids.
 - **Scratch space** for the symmetric difference of two paths uses stamped marker arrays that clear
   in constant time.
 

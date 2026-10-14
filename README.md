@@ -106,7 +106,7 @@ The tests check the solvers against published results and against independent mo
 
 Speed and convergence numbers are in [docs/benchmarks.md](docs/benchmarks.md). For scale: Chicago Regional
 (1 790 zones, 39 018 links, 2.3 million OD pairs) reaches a relative gap of 1e-4 in about two minutes on 8
-threads, using 3 GB.
+threads, using 1.3 GB.
 
 ## Layout
 
@@ -148,7 +148,8 @@ cargo run --release -p pyta-io --example order_benchmark -- Anaheim 1e-4 1e-6
 - **Multi-class is gradient projection only**, and has no objective function: with different PCEs
   the problem is asymmetric, so convergence is judged by the relative gap.
 - **Frank-Wolfe has no multi-class.**
-- **Path memory** grows with zones squared times paths per OD (3 GB for 2.3 million OD pairs). Compressed
-  path storage and bush-based methods are the planned answer for the largest networks.
+- **Path memory** grows with zones squared times paths per OD (1.3 GB for 2.3 million OD pairs, with
+  paths stored as a tree per origin). Sydney and Austin are untested; bush-based methods are the planned
+  answer if they do not fit.
 - **Not yet implemented:** multiple time periods and carry-over, GMNS input, OSM download,
   link-direction optimisation.
