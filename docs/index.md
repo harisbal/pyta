@@ -69,6 +69,37 @@ result.paths()                 # equilibrium path flows
 
 </div>
 
+## Next steps
+
+Planned extensions, roughly in order:
+
+- **Larger networks**: lower path memory and faster flow updates, for models with several thousand zones.
+- **OpenStreetMap networks**, converted to GMNS or flat tables in the Python layer.
+- **Link-direction optimisation**, built on the assignment engine.
+- **Interacting junction models** for signalised and priority junctions.
+
+**Stochastic user equilibrium** is deliberately deferred: PyTA keeps the deterministic equilibrium for
+now. When it is added, path-based logit SUE fits the existing solver best. The full list, with the
+current limitations, is in the [roadmap](design/roadmap.md).
+
+## Contributing
+
+Bug reports, questions and pull requests are welcome on
+[GitHub](https://github.com/harisbal/pyta/issues). For larger changes, please open an issue first to
+discuss the approach.
+
+- **Tests.** Check new solver features against something independent of the code: a published solution,
+  a closed-form equilibrium or an equivalent model.
+- **Design decisions** are recorded in the [decision records](design/decisions/index.md); add one for any change to the model or the API.
+- **Before opening a pull request**, run:
+
+```sh
+cargo fmt --check && cargo clippy --workspace --all-targets
+cargo test --workspace
+maturin develop --release && pytest
+mkdocs build --strict
+```
+
 ## Citing PyTA
 
 If you use PyTA in your research, please cite it as:

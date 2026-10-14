@@ -121,20 +121,43 @@ mkdocs build --strict        # static site in site/
 cargo doc --workspace --no-deps --open     # Rust API reference
 ```
 
-## Development
-
-```sh
-cargo test --workspace        # Rust tests (about 30 s in debug, mostly one large test)
-cargo clippy --workspace --all-targets
-cargo fmt --check
-maturin develop --release && pytest
-cargo run --release -p pyta-io --example order_benchmark -- Anaheim 1e-4 1e-6
-```
-
 ## Limitations
 
 PyTA solves the static problem: no queue spillback, and delays depend only on a link's or turn's own
 traffic. See [the roadmap](docs/design/roadmap.md).
+
+## Next steps
+
+Planned extensions, roughly in order:
+
+- **Larger networks**: lower path memory and faster flow updates, for models with several thousand zones.
+- **OpenStreetMap networks**, converted to GMNS or flat tables in the Python layer.
+- **Link-direction optimisation**, built on the assignment engine.
+- **Interacting junction models** for signalised and priority junctions.
+
+**Stochastic user equilibrium** is deliberately deferred: PyTA keeps the deterministic equilibrium for
+now. When it is added, path-based logit SUE fits the existing solver best. The full list, with the
+current limitations, is in the [roadmap](docs/design/roadmap.md).
+
+## Contributing
+
+Bug reports, questions and pull requests are welcome on
+[GitHub](https://github.com/harisbal/pyta/issues). For larger changes, please open an issue first to
+discuss the approach.
+
+- **Tests.** Check new solver features against something independent of the code: a published solution,
+  a closed-form equilibrium or an equivalent model.
+- **Design decisions** are recorded in [docs/design/decisions](docs/design/decisions/); add one for any change to the model or the API.
+- **Before opening a pull request**, run:
+
+```sh
+cargo fmt --check && cargo clippy --workspace --all-targets
+cargo test --workspace
+maturin develop --release && pytest
+mkdocs build --strict
+```
+
+Benchmarks: `cargo run --release -p pyta-io --example order_benchmark -- Anaheim 1e-4 1e-6`.
 
 ## Citing PyTA
 
