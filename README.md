@@ -2,7 +2,7 @@
 
 [![Release](https://img.shields.io/github/v/release/harisbal/pytraf)](https://github.com/harisbal/pytraf/releases)
 [![Docs](https://img.shields.io/badge/docs-harisbal.github.io%2Fpytraf-blue)](https://harisbal.github.io/pytraf/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](https://github.com/harisbal/pytraf/blob/main/LICENSE)
 
 Path-based traffic assignment with turn delays and multiple vehicle classes.
 
@@ -29,8 +29,13 @@ Its main features are:
 
 ## Install
 
-You need Rust ([rustup](https://rustup.rs)), Python 3.9 or newer, and
-[maturin](https://www.maturin.rs).
+```sh
+pip install pytraf
+pip install pandas        # optional: for the DataFrame inputs and tables
+```
+
+Wheels for Linux, macOS and Windows need Python 3.9 or newer and nothing else. To build from source you need
+Rust ([rustup](https://rustup.rs)) and [maturin](https://www.maturin.rs):
 
 ```sh
 uv venv .venv && source .venv/bin/activate        # or python -m venv
@@ -76,8 +81,8 @@ result.links.by_class["trucks"]   # vehicles of one class, by name or position
 result.links.volume              # PCE-weighted volume that drives travel times
 ```
 
-A worked example is in [Getting started](docs/getting-started.md); every table column is in
-[the Python guide](docs/guide/python.md).
+A worked example is in [Getting started](https://harisbal.github.io/pytraf/getting-started/); every table column is in
+[the Python guide](https://harisbal.github.io/pytraf/guide/python/).
 
 ## Rust quick start
 
@@ -103,7 +108,7 @@ The core crate does no file IO: it takes typed arrays, so Rust and Python users 
 ## Does it get the right answer?
 
 It reproduces the published solutions of the standard benchmark networks (Sioux Falls, Anaheim) and is
-checked against independent models; see [docs/benchmarks.md](docs/benchmarks.md).
+checked against independent models; see [docs/benchmarks.md](https://harisbal.github.io/pytraf/benchmarks/).
 
 ## Layout
 
@@ -131,7 +136,7 @@ cargo doc --workspace --no-deps --open     # Rust API reference
 ## Limitations
 
 PyTraf solves the static problem: no queue spillback, and delays depend only on a link's or turn's own
-traffic. See [the roadmap](docs/design/roadmap.md).
+traffic. See [the roadmap](https://harisbal.github.io/pytraf/design/roadmap/).
 
 ## Next steps
 
@@ -144,7 +149,7 @@ Planned extensions, roughly in order:
 
 **Stochastic user equilibrium** is deliberately deferred: PyTraf keeps the deterministic equilibrium for
 now. When it is added, path-based logit SUE fits the existing solver best. The full list, with the
-current limitations, is in the [roadmap](docs/design/roadmap.md).
+current limitations, is in the [roadmap](https://harisbal.github.io/pytraf/design/roadmap/).
 
 ## Contributing
 
@@ -154,7 +159,7 @@ discuss the approach.
 
 - **Tests.** Check new solver features against something independent of the code: a published solution,
   a closed-form equilibrium or an equivalent model.
-- **Design decisions** are recorded in [docs/design/decisions](docs/design/decisions/); add one for any change to the model or the API.
+- **Design decisions** are recorded in [docs/design/decisions](https://github.com/harisbal/pytraf/tree/main/docs/design/decisions); add one for any change to the model or the API.
 - **Before opening a pull request**, run:
 
 ```sh
@@ -174,9 +179,9 @@ publish a GitHub release.
 ## Citing PyTraf
 
 If you use PyTraf in your research, please cite it as below (GitHub's "Cite this repository" button gives
-the same from [`CITATION.cff`](CITATION.cff)):
+the same from [`CITATION.cff`](https://github.com/harisbal/pytraf/blob/main/CITATION.cff)):
 
-> Ballis, H. (2026). *PyTraf: Path-based static traffic assignment* (Version 0.2.0)
+> Ballis, H. (2026). *PyTraf: Path-based static traffic assignment* (Version 0.3.0)
 > [Computer software]. https://github.com/harisbal/pytraf
 
 ```bibtex
@@ -184,7 +189,7 @@ the same from [`CITATION.cff`](CITATION.cff)):
   author  = {Ballis, Haris},
   title   = {{PyTraf}: Path-based static traffic assignment},
   year    = {2026},
-  version = {0.2.0},
+  version = {0.3.0},
   url     = {https://github.com/harisbal/pytraf}
 }
 ```

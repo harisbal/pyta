@@ -2,6 +2,11 @@
 
 PyTraf is still in development, so names can change between versions.
 
+## 0.3.0
+
+- The package is now **PyTraf**: `import pytraf`, `pip install pytraf`. Earlier versions were called PyTA.
+- First release on PyPI.
+
 ## 0.2.0
 
 - The result is grouped (`result.links`, `result.turns`, `result.paths`, `result.unrouted`,

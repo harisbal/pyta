@@ -2,14 +2,14 @@
 
 ## Install
 
-PyTraf is not on PyPI yet. Download the wheel for your system from the
-[latest release](https://github.com/harisbal/pytraf/releases/latest) (Linux, macOS and Windows; Python 3.9
-or newer) and install it:
+PyTraf needs Python 3.9 or newer and has prebuilt wheels for Linux, macOS and Windows:
 
 ```sh
-pip install pytraf-{{ version }}-<platform>.whl      # the file you downloaded
+pip install pytraf
 pip install pandas                                 # optional: for the DataFrame inputs and tables
 ```
+
+The same wheels are attached to each [release](https://github.com/harisbal/pytraf/releases/latest).
 
 ### Build from source
 

@@ -6,13 +6,32 @@ build-backend = "maturin"
 name = "pytraf"
 dynamic = ["version"]  # taken from the Cargo workspace
 description = "Path-based traffic assignment with turn delays and multiple vehicle classes."
+readme = "README.md"
 license = { text = "MIT" }
+authors = [{ name = "Haris Ballis" }]
+keywords = ["traffic assignment", "user equilibrium", "transportation", "gradient projection", "GMNS"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Rust",
+    "Topic :: Scientific/Engineering",
+]
 requires-python = ">=3.9"
 dependencies = ["numpy>=1.23"]
 
 [project.urls]
 Documentation = "https://harisbal.github.io/pytraf/"
 Repository = "https://github.com/harisbal/pytraf"
+Issues = "https://github.com/harisbal/pytraf/issues"
+Changelog = "https://harisbal.github.io/pytraf/changelog/"
 
 [project.optional-dependencies]
 pandas = ["pandas>=1.5"]
