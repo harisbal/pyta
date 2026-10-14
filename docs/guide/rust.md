@@ -42,26 +42,17 @@ let turns = TurnTable::build(
 let vdf = Bpr::new(gmns.free_flow_time, gmns.capacity, gmns.b, gmns.power)?;
 ```
 
-The directory needs `node.csv` and `link.csv`; `movement.csv` and `config.csv` are optional. Set
-`GmnsOptions::length_unit` and `speed_unit` when there is no `config.csv` or when it is wrong. Times are in
-minutes. The rules for zones, undirected links and movements are in
-[decision 0009](../design/decisions/0009-gmns-input.md); `cargo run --release -p pyta-io --example gmns_assign`
-runs a dataset end to end.
+Set `GmnsOptions::length_unit` and `speed_unit` when the dataset has no `config.csv`.
+`cargo run --release -p pyta-io --example gmns_assign` runs a dataset end to end.
 
 ## The pieces
 
-- **`Network::from_edges(num_nodes, &[Edge])`** builds the immutable graph. An `Edge` carries an
-  explicit `link_id`; ids must be exactly `0..num_links`, in any order. Costs and flows live in
-  separate arrays indexed by link id.
-- **`TurnTable::build(&network, &is_endpoint, &exceptions, options)`** generates every allowed
-  turn and applies bans and penalties. Turn ids index the turn flow and cost arrays.
-- **`Vdf`** is the delay function trait: `cost_at`, `derivative_at` and `integral` over arrays.
-  `Bpr` is built in, `NoDelay` means "no delay". Implement `Vdf` to add your own.
-- **`OdDemand::from_triples`** groups demand by origin.
+- **`Network::from_edges`** builds the graph; link ids must be `0..num_links`.
+- **`TurnTable::build`** generates the allowed turns and applies bans and penalties.
+- **`Vdf`** is the travel-time function trait. `Bpr` is built in; implement `Vdf` for your own.
+- **`OdDemand::from_triples`** builds the demand.
 - **Solvers:** `gradient_projection`, `gradient_projection_with_turn_delays`,
-  `gradient_projection_multiclass`, and `frank_wolfe` / `frank_wolfe_with_turn_delays`.
-- **Lower-level pieces:** `dijkstra` (node-based), `dijkstra_turns` (link-labelled, turn-aware),
-  `all_or_nothing` and `PathStore`.
+  `gradient_projection_multiclass`, and the reference `frank_wolfe`.
 
 ## Several classes
 

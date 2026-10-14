@@ -8,80 +8,88 @@ PyTA is not on PyPI yet, so you build it from the repository:
 ```sh
 git clone <repository> pyta && cd pyta
 uv venv .venv && source .venv/bin/activate        # or: python -m venv .venv
-uv pip install numpy pandas pytest maturin
-maturin develop --release                          # compile the Rust core and install `pyta`
-pytest                                             # optional
+uv pip install numpy pandas maturin
+maturin develop --release                          # compile and install `pyta`
 ```
 
-Use `--release`: an optimised build is about ten times faster than a debug build.
+## A small example
 
-## Your first assignment
+3 000 drivers travel from **Home** to **Work** in one hour. They can take the ring road, cut through the
+town centre, or start through the centre and use a short link onto the ring road.
 
-The repository includes the Sioux Falls benchmark network.
+```mermaid
+flowchart LR
+    H((0<br/>Home)) -- "link 0: ring, 6 min" --> R((1<br/>Ring))
+    R -- "link 1: ring, 6 min" --> W((3<br/>Work))
+    H -- "link 2: centre, 4 min" --> C((2<br/>Centre))
+    C -- "link 3: centre, 4 min" --> W
+    C -- "link 4: shortcut, 1 min" --> R
+```
+
+Describe the roads in one table and the trips in another. Nodes are numbered from 0, and each row of
+the link table is a link, numbered in order.
 
 ```python
+import pandas as pd
 import pyta
 
-net = pyta.Network.from_tntp("data/tntp/SiouxFalls/SiouxFalls_net.tntp")
-demand = pyta.Demand.from_tntp("data/tntp/SiouxFalls/SiouxFalls_trips.tntp", net)
+links = pd.DataFrame({
+    "from_node":      [0, 1, 0, 2, 2],
+    "to_node":        [1, 3, 2, 3, 1],
+    "free_flow_time": [6.0, 6.0, 4.0, 4.0, 1.0],   # minutes on an empty road
+    "capacity":       [2000, 2000, 1500, 800, 1000],   # vehicles per hour
+})
+trips = pd.DataFrame({"origin": [0], "destination": [3], "flow": [3000.0]})
 
-result = pyta.assign(net, demand, gap=1e-6)
-print(result.converged, result.iterations, result.relative_gap)
+net = pyta.network_from_tables(links)
+demand = pyta.demand_from_table(trips, num_nodes=net.num_nodes)
+
+result = pyta.assign(net, demand)
+print(result)
+# AssignResult(converged=True, iterations=13, relative_gap=2.071e-7, classes=1)
 ```
 
-`gap` is the **relative gap**: how far the flows are from equilibrium (see
-[how it works](concepts/how-it-works.md#the-relative-gap)). `1e-4` is a rough answer, `1e-6` is a good one.
+## Reading the result
 
-Read the results:
+How many vehicles use each link:
 
 ```python
-result.link_flow            # numpy array: vehicles on each link
-result.objective            # the Beckmann objective
-result.sweep_gaps           # gap estimate after each sweep
+result.link_flow.round()
+# array([1245., 1753., 1755., 1247.,  508.])
 ```
 
-## Your own network
+The centre is the shortest route, but its second link has little capacity, so traffic spreads until
+all three routes take the same time. That balance is the **user equilibrium**: nobody can arrive
+sooner by switching route.
 
-Build it from two tables:
+PyTA keeps the routes themselves, so you can see who goes where:
 
-=== "pandas"
+```python
+paths = result.paths()
+paths["flow"].round()                  # array([1247., 1245.,  508.])
+paths["links"], paths["link_offsets"]  # links of path i: links[offsets[i]:offsets[i+1]]
+```
 
-    ```python
-    import pandas as pd
+| path | links | vehicles |
+|---|---|---|
+| through the centre | 2, 3 | 1 247 |
+| ring road | 0, 1 | 1 245 |
+| centre, then shortcut | 2, 4, 1 | 508 |
 
-    links = pd.DataFrame({
-        "from_node":      [0, 0, 1, 2],
-        "to_node":        [1, 2, 3, 3],
-        "free_flow_time": [4.0, 6.0, 5.0, 3.0],   # minutes at zero flow
-        "capacity":       [1800, 1800, 1200, 2400],
-    })
-    trips = pd.DataFrame({"origin": [0], "destination": [3], "flow": [3000.0]})
+## Larger networks
 
-    net = pyta.network_from_tables(links)
-    demand = pyta.demand_from_table(trips, num_nodes=net.num_nodes)
-    result = pyta.assign(net, demand)
-    ```
+Real networks come from files or larger tables, and the call stays the same. The repository includes
+the Sioux Falls benchmark:
 
-=== "numpy"
+```python
+net = pyta.Network.from_tntp("data/tntp/SiouxFalls/SiouxFalls_net.tntp")
+demand = pyta.Demand.from_tntp("data/tntp/SiouxFalls/SiouxFalls_trips.tntp", net)
+result = pyta.assign(net, demand)
+```
 
-    ```python
-    import numpy as np
-
-    net = pyta.Network(
-        4,
-        np.array([0, 0, 1, 2]), np.array([1, 2, 3, 3]),
-        np.array([4.0, 6.0, 5.0, 3.0]), np.array([1800.0, 1800.0, 1200.0, 2400.0]),
-    )
-    demand = pyta.Demand(4, np.array([0]), np.array([3]), np.array([3000.0]))
-    result = pyta.assign(net, demand)
-    ```
-
-Links are numbered by row, nodes are integers from 0, and a zone is simply a node. The link delay
-is the BPR function `free_flow_time * (1 + b * (volume / capacity) ** power)` with `b = 0.15` and
-`power = 4` unless you give columns for them.
+GMNS datasets work too; see the [Python guide](guide/python.md#from-a-gmns-dataset).
 
 ## Next steps
 
-- [Turns](concepts/turns.md): bans, penalties and turn delays.
-- [Traffic classes](concepts/classes.md): trucks, tolls and banned links.
-- [Python guide](guide/python.md): every table column and result attribute.
+The [Python guide](guide/python.md) continues this example: ban a turn, add trucks, run a morning and
+an evening period.

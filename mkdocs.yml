@@ -40,9 +40,6 @@ nav:
       - Rust guide: guide/rust.md
   - Concepts:
       - How it works: concepts/how-it-works.md
-      - Network model: concepts/network-model.md
-      - Turns: concepts/turns.md
-      - Traffic classes: concepts/classes.md
       - Time periods: concepts/periods.md
   - Benchmarks: benchmarks.md
   - Design:

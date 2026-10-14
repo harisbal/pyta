@@ -1,86 +1,53 @@
 # How it works
 
-## The problem
+## User equilibrium
 
-Travellers choose paths. Congestion makes a path slower the more people use it. In a **user
-equilibrium** (Wardrop's first principle) every used path between a pair of zones has the same
-cost, and no unused path is cheaper.
+Each driver takes the quickest route, and a road gets slower as more drivers use it. The result is a
+**user equilibrium**: between any origin and destination, every route in use takes the same time and no
+unused route is quicker. In the [Getting started](../getting-started.md) example the three routes from
+Home to Work end up equally fast.
 
-For link delays that depend only on the link's own volume, this is the minimiser of the Beckmann
-objective
-
-\[
-\min \sum_a \int_0^{v_a} t_a(x)\,dx
-\quad\text{subject to}\quad
-\sum_{p \in P_{od}} f_p = q_{od},\; f_p \ge 0,
-\]
-
-where \(v_a\) is the volume on link \(a\), \(t_a\) its delay function, \(f_p\) the flow on path \(p\)
-and \(q_{od}\) the demand of an OD pair. Turn delays enter the same way as extra "pseudo-links".
-
-## Gradient projection
-
-PyTA's main solver keeps, for every OD pair, a small set of paths and moves flow between them.
-
-```mermaid
-flowchart TD
-    A[Start: all demand on free-flow shortest paths] --> B[Next origin in the sweep]
-    B --> C[Shortest paths from this origin at current costs]
-    C --> D[Add each destination's shortest path to its path set if new]
-    D --> E[For each OD pair: shift flow from every path to the cheapest]
-    E --> F[Refresh cost of the links and turns that changed]
-    F --> G{More origins?}
-    G -- yes --> B
-    G -- no --> H{Gap small enough?}
-    H -- no --> B
-    H -- yes --> I[Done]
-```
-
-**The shift.** For a path \(p\) costing more than the cheapest path \(p^*\), the Newton step is
+A link's travel time follows the BPR curve
 
 \[
-\Delta = \min\!\left(f_p,\; \frac{c_p - c_{p^*}}{\sum_{a \in p \,\triangle\, p^*} t_a'(v_a)}\right),
+t(v) = t_0\left(1 + b\left(\frac{v}{c}\right)^{n}\right)
 \]
 
-where the sum runs over the links and turns the two paths do *not* share. Shared links do not change
-when flow moves between the paths, so they are left alone. Flow \(\Delta\) moves from \(p\) to \(p^*\).
+with free-flow time \(t_0\), capacity \(c\), volume \(v\), and by default \(b = 0.15\), \(n = 4\).
+Turns can add a fixed penalty or their own BPR delay.
 
-**Gauss-Seidel.** After every single shift the costs of the touched links are refreshed, so the next
-shift sees the effect of the last one. This matters: shifting several paths of one OD pair from a
-single cost snapshot overshoots when they load the same links, and with strong turn delays it
-stalled convergence ([decision record](../design/decisions/0003-gradient-projection.md)).
+## The solver
 
-**Why paths.** Keeping paths gives path flows, select-link analysis and turn flows directly. The cost
-is memory: zones² × paths per OD × links per path.
+PyTA uses **gradient projection**. For every origin–destination pair it keeps a few routes and
+repeatedly moves drivers from the slower routes to the quickest one, adding new routes as they become
+the quickest, until all routes in use cost the same. Because the routes are kept, path flows and
+select-link analysis come for free.
 
-## Frank-Wolfe
-
-Frank-Wolfe loads all demand on the current shortest paths, then moves the *link flows* part way
-toward that target with an exact line search. It needs little memory and is simple, but it slows
-down badly near the solution (Sioux Falls: 9 825 iterations for gap 1e-5, against 54 sweeps of gradient
-projection for 1e-6). PyTA uses it as a reference to check gradient projection against.
+**Frank-Wolfe** is also available as a simple reference solver (Rust only, single class). It converges
+much more slowly.
 
 ## The relative gap
 
 \[
-\text{gap} = 1 - \frac{\sum_{od} q_{od}\, c^{\min}_{od}}{\sum_a v_a\, t_a(v_a)}
+\text{gap} = 1 - \frac{\text{total time if everyone took the quickest route}}{\text{total time of the current flows}}
 \]
 
-the total cost if everybody took the cheapest path, divided by the total cost of the current flows.
-It is zero at equilibrium. During a sweep PyTA tracks a cheap estimate; before declaring convergence
-it recomputes the gap exactly from fresh shortest paths at one consistent set of costs.
+It is zero at equilibrium. At `1e-4` flows are typically within a few percent of the answer; at `1e-6`
+within a few vehicles.
 
-## Parallel sweeps
+## Network rules
 
-Shifting flow must stay sequential (each shift sees the previous one's costs), but finding the shortest
-paths does not. A sweep therefore handles origins in *chunks*: the searches of a chunk's origins run in
-parallel, then the shifts are applied origin by origin. A path found with costs a few origins old is still
-a valid candidate, and every shift prices its paths with current costs, so the method converges to the same
-equilibrium. The default chunk is about 1/32 of the origins. See [the decision record](../design/decisions/0007-parallel-sweeps.md).
+- **Zones are nodes.** Trips go from node to node, and there are no special connector links.
+  Centroid nodes marked with `is_endpoint` can start or end a route but not be passed through.
+- **Turns.** A route is a sequence of links joined by allowed turns, so turn bans and penalties are
+  respected exactly. U-turns are banned unless you allow them.
+- **Classes.** All classes share the road: travel times depend on the volume in car units,
+  \(\sum_k \mathrm{pce}_k \times \text{vehicles}_k\). Each class then picks its own quickest routes, with its own
+  extra costs and allowed links. With several classes there is no single objective, so convergence is
+  judged by the relative gap alone.
 
-## Origin order
+## Limits
 
-A sweep visits origins one at a time, so the order matters a little. PyTA offers `fixed`, `shuffle`,
-`alternate`, `largest_gap`, `largest_demand` and `smallest_demand`. On the larger benchmarks shuffling or
-largest-gap-first needed about 30% fewer sweeps; on small networks the differences are noise. See
-[benchmarks](../benchmarks.md#origin-order).
+PyTA solves the **static** problem: no queues spilling back, and a turn's delay depends only on its own
+traffic, so signal timings and opposing flows are not modelled. Several periods can be chained, with
+unfinished trips carried over (see [time periods](periods.md)).

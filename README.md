@@ -2,25 +2,10 @@
 
 Static traffic assignment with a Rust core and Python bindings.
 
-PyTA solves the **user-equilibrium** problem on road networks: every traveller picks a cheapest
-path given everyone else's choices. It is **path-based** (it keeps the paths, so select-link and
-path analysis come for free), handles **turn delays and bans**, supports **several traffic classes**,
-and reads flat tables, so there is little boilerplate between your data and a result.
-
-## What it does
-
-- **Gradient projection** (path-based, Gauss-Seidel by origin) as the main solver; **Frank-Wolfe**
-  as a simple reference solver.
-- **Turn-aware shortest paths**: labels sit on links, so banned turns and turn penalties are exact.
-- **Turn costs**: fixed penalties, bans, and a delay that depends on the turn's own flow.
-- **Multiple classes**: own demand, passenger-car-equivalent (PCE) weight, extra link costs
-  (tolls, distance charges) and allowed links (e.g. a truck ban) per class.
-- **Zone = node**, with optional endpoint-only nodes (centroids) that paths may start or end at but
-  not pass through. No connector concept.
-- **TNTP reader** for the standard benchmark networks, validated against published solutions.
-
-Static means one time period, no queue spillback and no vehicle-level simulation.
-See [limitations](#limitations).
+PyTA works out which routes traffic takes on a road network once every driver has settled on their
+quickest one (the **user equilibrium**). It keeps the routes, not just link totals, and handles **turn
+bans and delays**, **several vehicle classes** and **consecutive time periods**. Inputs are flat tables
+(DataFrames or numpy arrays), TNTP or GMNS files.
 
 ## Install
 
@@ -69,7 +54,8 @@ result.class_link_flow     # list of arrays, vehicles per class
 result.link_volume         # PCE-weighted volume that drives travel times
 ```
 
-The full guide, with every table column, is in [the Python guide](docs/guide/python.md).
+A worked example is in [Getting started](docs/getting-started.md); every table column is in
+[the Python guide](docs/guide/python.md).
 
 ## Rust quick start
 
@@ -94,19 +80,8 @@ The core crate does no file IO: it takes typed arrays, so Rust and Python users 
 
 ## Does it get the right answer?
 
-The tests check the solvers against published results and against independent models.
-
-| check | result |
-|---|---|
-| Sioux Falls objective, published 4 231 335.29 | reproduced to 7 digits; link flows within 0.014 vehicles at gap 1e-8 |
-| Anaheim (real centroids) | published flows reproduced to 0.00 vehicles at gap 1e-10 |
-| Chicago Sketch | converges to a lower objective than the published file, which is itself not fully converged |
-| Turn costs | flows equal those of a turn-free model on an expanded line graph (Sioux Falls, Anaheim) |
-| Multi-class | two identical classes reproduce the single-class equilibrium; tolls, bans and PCE match closed forms |
-
-Speed and convergence numbers are in [docs/benchmarks.md](docs/benchmarks.md). For scale: Chicago Regional
-(1 790 zones, 39 018 links, 2.3 million OD pairs) reaches a relative gap of 1e-4 in about two minutes on 8
-threads, using 1.3 GB.
+It reproduces the published solutions of the standard benchmark networks (Sioux Falls, Anaheim) and is
+checked against independent models; see [docs/benchmarks.md](docs/benchmarks.md).
 
 ## Layout
 
@@ -143,13 +118,5 @@ cargo run --release -p pyta-io --example order_benchmark -- Anaheim 1e-4 1e-6
 
 ## Limitations
 
-- **Static and separable.** One period; delays depend on a link's or turn's own volume. Interacting
-  junction models (signals, gap acceptance) are not implemented. See [the roadmap](docs/design/roadmap.md).
-- **Multi-class is gradient projection only**, and has no objective function: with different PCEs
-  the problem is asymmetric, so convergence is judged by the relative gap.
-- **Frank-Wolfe has no multi-class.**
-- **Path memory** grows with zones squared times paths per OD (1.3 GB for 2.3 million OD pairs, with
-  paths stored as a tree per origin). Sydney and Austin are untested; bush-based methods are the planned
-  answer if they do not fit.
-- **Not yet implemented:** OSM download,
-  link-direction optimisation.
+PyTA solves the static problem: no queue spillback, and delays depend only on a link's or turn's own
+traffic. See [the roadmap](docs/design/roadmap.md).
