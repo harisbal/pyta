@@ -64,17 +64,17 @@ trips = pd.DataFrame({"origin": [0], "destination": [3], "flow": [3000.0]})
 net = pyta.Network.from_tables(links)
 demand = pyta.Demand.from_table(net, trips)
 
-result = pyta.assign(net, demand)
+result = net.assign(demand)
 print(result)
 # AssignResult(converged=True, iterations=13, relative_gap=2.071e-7, classes=1)
 ```
 
 ## Reading the result
 
-`link_table()` gives the result per link as a pandas DataFrame:
+`result.links.table()` gives the result per link as a pandas DataFrame:
 
 ```python
-result.link_table().round(2)
+result.links.table().round(2)
 ```
 
 ```text
@@ -93,7 +93,7 @@ volume over capacity and `time` is the travel time in minutes.
 PyTA keeps the routes themselves, so you can also see who goes where:
 
 ```python
-result.path_table().round(2)
+result.paths.table().round(2)
 ```
 
 ```text
@@ -109,8 +109,9 @@ traffic spreads until all three routes take 12.67 minutes. This is the **user eq
 Wardrop's first principle: every route in use has the same travel time, and no driver can arrive
 sooner by switching to another.
 
-The same results are available as numpy arrays indexed by link id (`result.link_flow`,
-`result.link_time`, ...), which are faster for large networks.
+The same results are available as numpy arrays indexed by link id (`result.links.flow`,
+`result.links.time`, ...), which are faster for large networks. `print(result.summary())` gives a short
+account of the run.
 
 ## Larger networks
 
@@ -120,7 +121,7 @@ the Sioux Falls benchmark:
 ```python
 net = pyta.Network.from_tntp("data/tntp/SiouxFalls/SiouxFalls_net.tntp")
 demand = pyta.Demand.from_tntp(net, "data/tntp/SiouxFalls/SiouxFalls_trips.tntp")
-result = pyta.assign(net, demand)
+result = net.assign(demand)
 ```
 
 GMNS datasets work too; see the [Python guide](guide/python.md#from-a-gmns-dataset).

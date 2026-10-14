@@ -19,6 +19,17 @@ fn msg(text: impl Into<String>) -> PyErr {
     PyValueError::new_err(text.into())
 }
 
+/// Warns that the argument `old` is deprecated in favour of `new`.
+fn deprecated_argument(py: Python<'_>, old: &str, new: &str) -> PyResult<()> {
+    let category = py.get_type::<pyo3::exceptions::PyDeprecationWarning>();
+    PyErr::warn(
+        py,
+        &category,
+        &std::ffi::CString::new(format!("{old} is deprecated, use {new}")).expect("no NUL"),
+        2,
+    )
+}
+
 fn to_u32(values: &PyReadonlyArray1<'_, i64>, what: &str) -> PyResult<Vec<u32>> {
     values
         .as_array()
@@ -144,7 +155,7 @@ fn build_network(
     let is_endpoint = is_endpoint.unwrap_or_else(|| vec![false; num_nodes]);
     if is_endpoint.len() != num_nodes {
         return Err(msg(format!(
-            "is_endpoint has {} entries, expected {num_nodes}",
+            "is_centroid has {} entries, expected {num_nodes}",
             is_endpoint.len()
         )));
     }
@@ -223,9 +234,10 @@ fn build_network(
 impl Network {
     /// Links are numbered by their position in the arrays; node ids are 0..num_nodes.
     #[new]
-    #[pyo3(signature = (num_nodes, from_node, to_node, free_flow_time, capacity, b=None, power=None, is_endpoint=None, turns=None, allow_u_turns=false))]
+    #[pyo3(signature = (num_nodes, from_node, to_node, free_flow_time, capacity, b=None, power=None, is_centroid=None, turns=None, allow_u_turns=false, is_endpoint=None))]
     #[allow(clippy::too_many_arguments)]
     fn new(
+        py: Python<'_>,
         num_nodes: usize,
         from_node: PyReadonlyArray1<'_, i64>,
         to_node: PyReadonlyArray1<'_, i64>,
@@ -233,10 +245,18 @@ impl Network {
         capacity: PyReadonlyArray1<'_, f64>,
         b: Option<PyReadonlyArray1<'_, f64>>,
         power: Option<PyReadonlyArray1<'_, f64>>,
-        is_endpoint: Option<PyReadonlyArray1<'_, bool>>,
+        is_centroid: Option<PyReadonlyArray1<'_, bool>>,
         turns: Option<&Bound<'_, PyDict>>,
         allow_u_turns: bool,
+        is_endpoint: Option<PyReadonlyArray1<'_, bool>>,
     ) -> PyResult<Network> {
+        let is_centroid = match (is_centroid, is_endpoint) {
+            (None, Some(old)) => {
+                deprecated_argument(py, "is_endpoint", "is_centroid")?;
+                Some(old)
+            }
+            (given, _) => given,
+        };
         let rows = turns.map(read_turn_rows).transpose()?;
         build_network(
             num_nodes,
@@ -246,7 +266,7 @@ impl Network {
             capacity.as_array().to_vec(),
             b.map(|v| v.as_array().to_vec()),
             power.map(|v| v.as_array().to_vec()),
-            is_endpoint.map(|v| v.as_array().to_vec()),
+            is_centroid.map(|v| v.as_array().to_vec()),
             rows,
             allow_u_turns,
         )
@@ -276,13 +296,22 @@ impl Network {
     /// Reads a GMNS dataset directory (`node.csv`, `link.csv`, optional `movement.csv`
     /// and `config.csv`). Times are in minutes. See ADR 0009 for the rules.
     #[staticmethod]
-    #[pyo3(signature = (path, length_unit=None, speed_unit=None, zone_nodes_are_endpoints=false))]
+    #[pyo3(signature = (path, length_unit=None, speed_unit=None, zone_nodes_are_centroids=false, zone_nodes_are_endpoints=None))]
     fn from_gmns(
+        py: Python<'_>,
         path: &str,
         length_unit: Option<String>,
         speed_unit: Option<String>,
-        zone_nodes_are_endpoints: bool,
+        zone_nodes_are_centroids: bool,
+        zone_nodes_are_endpoints: Option<bool>,
     ) -> PyResult<Network> {
+        let zone_nodes_are_endpoints = match zone_nodes_are_endpoints {
+            Some(old) => {
+                deprecated_argument(py, "zone_nodes_are_endpoints", "zone_nodes_are_centroids")?;
+                old
+            }
+            None => zone_nodes_are_centroids,
+        };
         let options = pyta_io::gmns::GmnsOptions {
             length_unit,
             speed_unit,
@@ -371,7 +400,7 @@ impl Network {
     }
 
     #[getter]
-    fn is_endpoint<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray1<bool>> {
+    fn is_centroid<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray1<bool>> {
         self.is_endpoint.clone().into_pyarray(py)
     }
 
@@ -503,7 +532,7 @@ impl Demand {
 
     /// Trips dropped because their zone has no node (0 unless read with `from_gmns`).
     #[getter]
-    fn skipped_flow(&self) -> f64 {
+    fn unknown_zone_flow(&self) -> f64 {
         self.skipped_flow
     }
 
@@ -561,7 +590,7 @@ impl TrafficClass {
 
 // ----------------------------------------------------------------- Result
 
-#[pyclass(module = "pyta._pyta", frozen)]
+#[pyclass(module = "pyta._pyta", name = "_RawResult", frozen)]
 struct AssignResult {
     /// The network the result belongs to, for the tables built in Python.
     network: Py<Network>,
@@ -836,7 +865,7 @@ fn extract_class(item: &Bound<'_, PyAny>) -> PyResult<Py<TrafficClass>> {
 
 #[pyfunction]
 #[allow(clippy::too_many_arguments)]
-#[pyo3(signature = (network, classes, gap=1e-6, max_iter=200, order="fixed", seed=0, chunk_size=0, threads=None, link_preload=None, turn_preload=None, unreachable="error"))]
+#[pyo3(signature = (network, classes, *, gap=1e-6, max_iter=200, order="fixed", seed=0, chunk_size=0, threads=None, link_preload=None, turn_preload=None, unreachable="error"))]
 fn assign(
     py: Python<'_>,
     network: Py<Network>,
@@ -937,6 +966,7 @@ fn assign(
             py,
             &pool,
             net,
+            &class_names,
             &net.link_vdf,
             &net.turn_vdf,
             &specs,
@@ -954,6 +984,7 @@ fn assign(
             py,
             &pool,
             net,
+            &class_names,
             &core::Preloaded::new(&net.link_vdf, &links),
             &core::Preloaded::new(&net.turn_vdf, &turns),
             &specs,
@@ -1013,10 +1044,49 @@ struct Solved {
 
 /// Runs the solver with the GIL released, then evaluates times and the objective with the
 /// same delay functions.
+/// Turns a solver failure into a Python error. For demand no allowed path serves, it names
+/// the offending origin-destination pairs rather than only the first one found.
+fn solver_error(
+    error: core::SolverError,
+    net: &Network,
+    specs: &[core::ClassSpec<'_>],
+    class_names: &[String],
+) -> PyErr {
+    if matches!(error, core::SolverError::ClassUnreachable { .. })
+        && let Ok(all) = core::find_unrouted(&net.network, &net.turns, specs)
+        && !all.is_empty()
+    {
+        let total: f64 = all.iter().map(|u| u.flow).sum();
+        let shown: Vec<String> = all
+            .iter()
+            .take(5)
+            .map(|u| {
+                format!(
+                    "{} -> {} (class {}, {} trips)",
+                    u.origin, u.destination, class_names[u.class], u.flow
+                )
+            })
+            .collect();
+        let more = match all.len().saturating_sub(5) {
+            0 => String::new(),
+            n => format!(", and {n} more"),
+        };
+        return msg(format!(
+            "no allowed path serves {} origin-destination pair(s) carrying {total} trips: {}{more}. \
+             Pass unreachable='skip' to leave them out and report them in result.unrouted.",
+            all.len(),
+            shown.join(", ")
+        ));
+    }
+    err(error)
+}
+
+#[allow(clippy::too_many_arguments)]
 fn solve<V: core::Vdf + Sync, T: core::Vdf + Sync>(
     py: Python<'_>,
     pool: &Option<rayon::ThreadPool>,
     net: &Network,
+    class_names: &[String],
     link_vdf: &V,
     turn_vdf: &T,
     specs: &[core::ClassSpec<'_>],
@@ -1037,7 +1107,7 @@ fn solve<V: core::Vdf + Sync, T: core::Vdf + Sync>(
             Some(pool) => pool.install(run),
             None => run(),
         })
-        .map_err(err)?;
+        .map_err(|e| solver_error(e, net, specs, class_names))?;
 
     let link_time: Vec<f64> = (0..net.network.num_links())
         .map(|l| link_vdf.cost_at(l, result.link_volume[l]))

@@ -47,12 +47,13 @@ import pyta
 net = pyta.Network.from_tntp("data/tntp/SiouxFalls/SiouxFalls_net.tntp")
 demand = pyta.Demand.from_tntp(net, "data/tntp/SiouxFalls/SiouxFalls_trips.tntp")
 
-result = pyta.assign(net, demand, gap=1e-6)
+result = net.assign(demand, gap=1e-6)
 result.converged, result.iterations, result.relative_gap
-result.link_flow          # numpy array, one entry per link
-result.objective          # Beckmann objective (single class, PCE 1)
-result.link_table()       # DataFrame: flow, volume/capacity and time per link
-result.path_table()       # DataFrame: every path with its flow, time and links
+result.links.flow         # numpy array, one entry per link
+result.diagnostics.objective   # Beckmann objective (single class, PCE 1)
+result.links.table()      # DataFrame: flow, volume/capacity and time per link
+result.paths.table()      # DataFrame: every path with its flow, time and links
+print(result.summary())   # a short account of the run
 ```
 
 From your own tables (DataFrames or dicts of arrays):
@@ -60,7 +61,7 @@ From your own tables (DataFrames or dicts of arrays):
 ```python
 net = pyta.Network.from_tables(links_df, turns_df)           # see docs/guide/python.md for columns
 demand = pyta.Demand.from_table(net, trips_df)
-result = pyta.assign(net, demand, gap=1e-6)
+result = net.assign(demand, gap=1e-6)
 ```
 
 Several classes:
@@ -70,9 +71,9 @@ cars   = pyta.TrafficClass(car_demand)
 trucks = pyta.TrafficClass(truck_demand, pce=2.5,
                            extra_link_cost=toll_in_minutes,        # per link, same units as time
                            allowed_links=~truck_banned)            # bool per link
-result = pyta.assign(net, [cars, trucks], gap=1e-6)
-result.class_link_flow     # list of arrays, vehicles per class
-result.link_volume         # PCE-weighted volume that drives travel times
+result = net.assign([cars, trucks], gap=1e-6)
+result.links.by_class["trucks"]   # vehicles of one class, by name or position
+result.links.volume              # PCE-weighted volume that drives travel times
 ```
 
 A worked example is in [Getting started](docs/getting-started.md); every table column is in

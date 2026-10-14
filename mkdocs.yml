@@ -63,6 +63,7 @@ nav:
           - "0010 Time periods (superseded)": design/decisions/0010-time-periods.md
           - "0011 Explicit preloads": design/decisions/0011-explicit-preloads.md
           - "0012 Skip unreachable demand": design/decisions/0012-skip-unreachable-demand.md
+          - "0013 Grouped result": design/decisions/0013-grouped-result-and-checked-options.md
       - Roadmap and limitations: design/roadmap.md
   - Reference:
       - Python API: reference/python.md

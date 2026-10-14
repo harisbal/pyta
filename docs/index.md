@@ -31,10 +31,10 @@ import pyta
 net = pyta.Network.from_tntp("SiouxFalls_net.tntp")
 demand = pyta.Demand.from_tntp(net, "SiouxFalls_trips.tntp")
 
-result = pyta.assign(net, demand)
-result.link_flow               # vehicles per link
-result.link_table()            # flows, volume/capacity and travel time per link
-result.path_table()            # equilibrium path flows and times
+result = net.assign(demand)
+result.links.flow              # vehicles per link
+result.links.table()           # flows, volume/capacity and travel time per link
+result.paths.table()           # equilibrium path flows and times
 ```
 
 <div class="grid cards" markdown>
